@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ultimate Mars Rover Perception Guide: Intel RealSense & ZED Camera Integration for ERC.">
+    <title>Ultimate Mars Rover Perception Guide</title>
+    
+    <!-- Premium Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #060913;
+            --panel-bg: rgba(13, 20, 38, 0.7);
+            --panel-border: rgba(0, 115, 230, 0.15);
+            --primary: #0071c5; /* Intel Blue */
+            --primary-glow: rgba(0, 113, 197, 0.25);
+            --accent-cyan: #00d2ff;
+            --accent-cyan-glow: rgba(0, 210, 255, 0.2);
+            --accent-teal: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --code-bg: rgba(10, 17, 30, 0.9);
+            --card-radius: 16px;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --sidebar-width: 290px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            background-image: 
+                radial-gradient(circle at 5% 10%, rgba(0, 113, 197, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 95% 90%, rgba(0, 210, 255, 0.08) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        /* Sidebar navigation */
+        aside {
+            width: var(--sidebar-width);
+            background: rgba(8, 16, 32, 0.9);
+            border-right: 1px solid var(--panel-border);
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .sidebar-header {
+            margin-bottom: 24px;
+        }
+
+        .sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 40%, #00d2ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-header h2 i {
+            color: var(--accent-cyan);
+            filter: drop-shadow(0 0 6px var(--accent-cyan));
+            -webkit-text-fill-color: initial;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* Custom Scrollbar for sidebar */
+        .sidebar-menu::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-menu::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+        }
+
+        .menu-item button {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 14px;
+            text-align: left;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: var(--transition);
+        }
+
+        .menu-item button:hover {
+            color: var(--text-main);
+            background: rgba(0, 113, 197, 0.08);
+        }
+
+        .menu-item.active button {
+            color: white;
+            background: var(--primary-glow);
+            border-left: 3px solid var(--accent-cyan);
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .sidebar-progress {
+            margin-top: auto;
+            padding-top: 16px;
+            border-top: 1px solid var(--panel-border);
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent-cyan) 100%);
+            transition: width 0.5s ease;
+        }
+
+        /* Main Content Container */
+        main {
+            margin-left: var(--sidebar-width);
+            flex-grow: 1;
+            min-height: 100vh;
+            padding: 40px;
+            max-width: 1100px;
+        }
+
+        /* Premium Navigation Bar */
+        .top-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 20px;
+        }
+
+        .nav-title h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: var(--transition);
+            font-family: inherit;
+        }
+
+        .btn:hover {
+            background: #005fa5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 113, 197, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 113, 197, 0.08);
+            border-color: var(--accent-cyan);
+            box-shadow: none;
+        }
+
+        /* Glass Panels */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--card-radius);
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        /* Typography */
+        .doc-section {
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .doc-section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .doc-section h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #ffffff;
+            border-left: 4px solid var(--accent-cyan);
+            padding-left: 12px;
+        }
+
+        .doc-section h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 28px;
+            margin-bottom: 14px;
+            color: #f1f5f9;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 6px;
+        }
+
+        .doc-section p {
+            color: #cbd5e1;
+            font-size: 1rem;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        .doc-section ul, .doc-section ol {
+            margin-bottom: 20px;
+            padding-left: 24px;
+            color: #cbd5e1;
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .doc-section li {
+            margin-bottom: 8px;
+        }
+
+        /* Variables Table Style */
+        .var-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 0.9rem;
+            background: rgba(10, 17, 30, 0.4);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .var-table th, .var-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .var-table th {
+            background: rgba(0, 113, 197, 0.15);
+            font-family: 'Outfit', sans-serif;
+            color: white;
+            font-weight: 600;
+        }
+
+        .var-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .var-name {
+            font-family: 'Fira Code', monospace;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .var-type {
+            font-family: 'Fira Code', monospace;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        /* Detailed Route Cards */
+        .route-card {
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 24px;
+            background: rgba(10, 25, 47, 0.4);
+            margin-bottom: 24px;
+        }
+
+        .route-card h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .route-card h4 i {
+            color: var(--accent-cyan);
+        }
+
+        .route-badge-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .route-badge {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 6px;
+            letter-spacing: 0.03em;
+        }
+
+        .badge-what { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.2); }
+        .badge-how { background: rgba(245, 158, 11, 0.15); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.2); }
+        .badge-ready { background: rgba(20, 184, 166, 0.15); color: #99f6e4; border: 1px solid rgba(20, 184, 166, 0.2); }
+
+        .route-section-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--accent-cyan);
+            margin-top: 14px;
+            margin-bottom: 6px;
+            letter-spacing: 0.04em;
+        }
+
+        /* Visual representation block */
+        .visual-display {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #10b981;
+            margin: 16px 0;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+
+        /* Filter block styling */
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 30px;
+        }
+
+        .filter-card {
+            background: rgba(10, 25, 47, 0.45);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .filter-card:hover {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.1);
+        }
+
+        .filter-card h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-card h4 span {
+            background: rgba(0, 210, 255, 0.15);
+            color: #00d2ff;
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .filter-card p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        /* Code Block Styling */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            padding: 18px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+        }
+
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 25, 47, 0.6);
+            border: 1px solid var(--panel-border);
+            border-bottom: none;
+            padding: 8px 16px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-family: 'Fira Code', monospace;
+        }
+
+        .code-header + pre {
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        /* GitHub alerts style */
+        .alert {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            display: flex;
+            gap: 12px;
+        }
+
+        .alert-important {
+            background: rgba(0, 113, 197, 0.1);
+            border: 1px solid rgba(0, 113, 197, 0.25);
+            color: #a5b4fc;
+        }
+
+        .alert-important i {
+            color: var(--accent-cyan);
+            font-size: 1.2rem;
+            margin-top: 2px;
+        }
+
+        .alert-tip {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            color: #a7f3d0;
+        }
+
+        .alert-tip i {
+            color: var(--accent-teal);
+            font-size: 1.2rem;
+            margin-top: 2px;
+        }
+
+        /* Checklist */
+        .interactive-todo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .interactive-todo input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-cyan);
+            cursor: pointer;
+        }
+
+        /* Print formatting styles */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                display: block !important;
+            }
+            aside {
+                display: none !important;
+            }
+            main {
+                margin-left: 0 !important;
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            .top-navbar, .nav-actions {
+                display: none !important;
+            }
+            .glass-panel {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin-bottom: 40px !important;
+                page-break-inside: avoid;
+            }
+            .doc-section {
+                display: block !important;
+                page-break-after: always;
+            }
+            .doc-section h2 {
+                color: black !important;
+                border-left-color: black !important;
+            }
+            pre {
+                background: #f1f5f9 !important;
+                border: 1px solid #cbd5e1 !important;
+                color: #0f172a !important;
+            }
+            code {
+                color: #0f172a !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar Navigation -->
+    <aside>
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-microchip"></i> RealSense OS</h2>
+        </div>
+        
+        <ul class="sidebar-menu">
+            <li class="menu-item active" onclick="switchSection('requirements')">
+                <button><i class="fa-solid fa-list-check"></i> 1. Requirements</button>
+            </li>
+            <li class="menu-item" onclick="switchSection('outputs')">
+                <button><i class="fa-solid fa-map-location-dot"></i> 2. Pipeline Outputs</button>
+            </li>
+            <li class="menu-item" onclick="switchSection('structure')">
+                <button><i class="fa-solid fa-shuffle"></i> 3. Pipeline Structure</button>
+            </li>
+            <li class="menu-item" onclick="switchSection('implementation')">
+                <button><i class="fa-solid fa-route"></i> 4. Node & Steps Guide</button>
+            </li>
+            <li class="menu-item" onclick="switchSection('packages')">
+                <button><i class="fa-solid fa-cubes"></i> 5. Ready-Made Packages</button>
+            </li>
+            <li class="menu-item" onclick="switchSection('self-study')">
+                <button><i class="fa-solid fa-graduation-cap"></i> Study Check & Notes</button>
+            </li>
+        </ul>
+
+        <div class="sidebar-progress">
+            <div class="progress-label">
+                <span>Study Progress</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main>
+        <!-- Top Navbar -->
+        <div class="top-navbar">
+            <div class="nav-title">
+                <h1 id="pageTitle">1. General Requirements</h1>
+            </div>
+            <div class="nav-actions">
+                <button class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-file-pdf"></i> Export to PDF</button>
+                <button class="btn" onclick="exportMarkdown()"><i class="fa-solid fa-file-arrow-down"></i> Export Markdown</button>
+            </div>
+        </div>
+
+        <!-- Section 1: Module Requirements -->
+        <div id="section-requirements" class="doc-section active">
+            <div class="glass-panel">
+                <h2>1. What is Required from a Rover Perception Module?</h2>
+                <p>A rover's perception module acts as its eyes and spatial brain. Its core job is to convert raw physical values (light, depth, acceleration) into a meaningful model of the surrounding world that the path planners and mechanical arms can interact with.</p>
+
+                <h3>Core Requirements:</h3>
+                <ul>
+                    <li><strong>Bandwidth Regulation (The Sizing Problem):</strong> Depth cameras capture huge amounts of data. Streaming raw 1280x720 video at 30 FPS saturates USB buses and overheats processors like the Jetson Orin Nano. The module must regulate this stream, downscaling to manageable frames (like 640x480 at 15 FPS) based on compute capacity.</li>
+                    <li><strong>Sensor-Level Denoising:</strong> Active stereoscopic depth cameras produce messy depth data with jagged outlines, flickering pixels, and hollow black "holes" where calculation failed. The module must actively filter this stream to avoid publishing phantom rocks or fake craters.</li>
+                    <li><strong>Spatial Coordinate Alignment:</strong> Because the RGB color lens and the depth sensors are physically separated by a few centimeters on the camera, their coordinate fields are mismatched. The module must warp and reproject the depth frame to align pixel-for-pixel with the color frame.</li>
+                    <li><strong>Strict Hardware Time Synchronization:</strong> Different sensors run at different speeds (IMU at 200 Hz, Encoders at 50 Hz, Camera at 15 Hz). If a camera frame from 2 seconds ago is processed as if it happened now, the rover will crash. The module must strictly timestamp all incoming frames to synchronize them.</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Section 2: Outputs -->
+        <div id="section-outputs" class="doc-section">
+            <div class="glass-panel">
+                <h2>2. Deep-Dive: Output Messages & Variables</h2>
+                <p>Robotic controllers don't understand "pictures." They communicate through structured ROS 2 message matrices. Here is a deep explanation of each output type, its variables, who uses them, and concrete examples.</p>
+                
+                <!-- Output 1 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-map"></i> 1. 2D / 2.5D Local Costmaps (nav_msgs/msg/OccupancyGrid)</h4>
+                    <p><strong>What it is:</strong> A flat grid map representation where the world is divided into grid cells. Each cell contains a single value representing the confidence of an obstacle sitting at those coordinates.</p>
+                    
+                    <table class="var-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Variable Name</th>
+                                <th style="width: 15%;">Data Type</th>
+                                <th>What it actually means (Simply Explained)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="var-name">info.resolution</td>
+                                <td class="var-type">float32</td>
+                                <td>The size of one grid cell in meters (e.g. 0.05 means each grid square represents a 5cm x 5cm patch of sand).</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">info.width / height</td>
+                                <td class="var-type">uint32</td>
+                                <td>The size of the map in cells (e.g. 100 x 100 cells with a resolution of 0.05m creates a 5m x 5m grid).</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">info.origin</td>
+                                <td class="var-type">Pose</td>
+                                <td>The starting coordinate (X,Y) of the bottom-left corner of the grid relative to the center of the rover.</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">data</td>
+                                <td class="var-type">int8[]</td>
+                                <td>A flat list of numbers (values from 0 to 100). 0 = completely empty sand, 100 = a certain obstacle (like a boulder), and -1 = unknown/unexplored space.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Used by:</strong> The **Nav2 Controller** (DWA or TEB local planners) to steer wheels around obstacles.</p>
+                    
+                    <div class="route-section-title">Visual Map Representation:</div>
+                    <div class="visual-display">
+# Legend: [R] = Rover (center), [.] = Free Sand (0), [X] = Boulder (100), [?] = Unknown (-1)
+
+[?] [?] [?] [?] [?] [?] [?] [?] [?]
+[?] [.] [.] [.] [.] [.] [.] [.] [?]
+[?] [.] [X] [X] [.] [.] [.] [.] [?]  <-- Row contains '100' at the boulder coordinates
+[?] [.] [.] [.] [.] [.] [.] [.] [?]
+[?] [.] [.] [.] [R] [.] [.] [.] [?]  <-- Rover sits at center origin (0, 0)
+[?] [.] [.] [.] [.] [.] [.] [.] [?]</div>
+                    
+                    <p><strong>Concrete Example:</strong> If the rover stands 1m directly in front of a rock, the costmap node calculates that the cell at offset +1.0m on the X-axis corresponds to index 5020 in the data array and writes the value 100 (obstacle) to it.</p>
+                </div>
+
+                <!-- Output 2 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-cubes"></i> 2. 3D Point Clouds (sensor_msgs/msg/PointCloud2)</h4>
+                    <p><strong>What it is:</strong> A massive list of 3D spatial points (X,Y,Z) outlining coordinates of surfaces in front of the camera.</p>
+                    
+                    <table class="var-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Variable Name</th>
+                                <th style="width: 15%;">Data Type</th>
+                                <th>What it actually means (Simply Explained)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="var-name">fields</td>
+                                <td class="var-type">PointField[]</td>
+                                <td>Describes what data is inside each point (usually x, y, z representing coordinates, and rgb or intensity values).</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">data</td>
+                                <td class="var-type">uint8[]</td>
+                                <td>The actual binary block containing the coordinates of the points. Every set of 16 or 32 bytes contains the binary representation of a single 3D point.</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">is_dense</td>
+                                <td class="var-type">bool</td>
+                                <td>True if there are no invalid/NaN values (where matching failed) in the data array.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Used by:</strong> The **Robotic Arm Planner (MoveIt)** to prevent arm joints from colliding with the ground, chassis, or nearby structures.</p>
+
+                    <div class="route-section-title">Point Cloud Visual Schema:</div>
+                    <table class="var-table" style="background: rgba(16, 185, 129, 0.05); border-color: rgba(16, 185, 129, 0.2);">
+                        <thead>
+                            <tr>
+                                <th>Point #</th>
+                                <th>X (Forward in m)</th>
+                                <th>Y (Left/Right in m)</th>
+                                <th>Z (Height in m)</th>
+                                <th>Intensity (surface reflection)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Point 1 (Ground)</td>
+                                <td class="var-name">1.25</td>
+                                <td class="var-name">0.12</td>
+                                <td class="var-name">-0.32</td>
+                                <td>0.45</td>
+                            </tr>
+                            <tr>
+                                <td>Point 2 (Obstacle tip)</td>
+                                <td class="var-name">1.54</td>
+                                <td class="var-name">-0.45</td>
+                                <td class="var-name">0.24</td>
+                                <td>0.89</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Concrete Example:</strong> When YOLO detects a panel, MoveIt! looks at the PointCloud points sitting inside the bounding box. It extracts the coordinate [X: 1.54, Y: -0.45, Z: 0.24] relative to the arm mount, telling the arm: "Drive the end-effector exactly to this physical point."</p>
+                </div>
+
+                <!-- Output 3 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-arrows-spin"></i> 3. 6-DoF Landmark Poses (geometry_msgs/msg/PoseStamped)</h4>
+                    <p><strong>What it is:</strong> A single coordinate point in space indicating the location and orientation of a target (like an ArUco marker) relative to a specific reference frame.</p>
+                    
+                    <table class="var-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Variable Name</th>
+                                <th style="width: 15%;">Data Type</th>
+                                <th>What it actually means (Simply Explained)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="var-name">header.frame_id</td>
+                                <td class="var-type">string</td>
+                                <td>The frame of reference this pose is calculated in (e.g. base_link or camera_color_optical_frame).</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">pose.position</td>
+                                <td class="var-type">Point (x, y, z)</td>
+                                <td>The distance from the origin in meters. X = forward/back, Y = left/right, and Z = up/down.</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">pose.orientation</td>
+                                <td class="var-type">Quaternion (x, y, z, w)</td>
+                                <td>A set of four numbers representing rotation in 3D space to avoid "Gimbal Lock" (where coordinate axes align and freeze).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Used by:</strong> The **Robotic Arm Inverse Kinematics (IK)** solver to align and interact with panels, and the **SLAM Localization** node to reduce positioning drift.</p>
+
+                    <div class="route-section-title">Rotation & Orientation Analogy:</div>
+                    <p>Think of your hand. Its position (X, Y, Z) tells you where your wrist is, but to turn a key or switch, you must tilt your hand. The orientation quaternion describes this tilt: **Roll** (tilt left/right), **Pitch** (tilt up/down), and **Yaw** (spin left/right).</p>
+                    
+                    <p><strong>Concrete Example:</strong> An ArUco tag on the lander panel is detected. The node publishes:
+                        <br><code>position: [x: 1.45, y: -0.10, z: 0.05]</code> (Tag is 1.45m ahead of camera, 10cm to the right, and 5cm up).
+                        <br><code>orientation: [x: 0.0, y: 0.707, z: 0.0, w: 0.707]</code> (This quaternion represents a pitch tilt of exactly 90 degrees, indicating the panel is vertical).
+                    </p>
+                </div>
+
+                <!-- Output 4 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-location-arrow"></i> 4. Visual Odometry Estimates (nav_msgs/msg/Odometry)</h4>
+                    <p><strong>What it is:</strong> A compound message showing how far the rover has driven and how fast it is moving, along with the system's confidence in those readings.</p>
+                    
+                    <table class="var-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Variable Name</th>
+                                <th style="width: 15%;">Data Type</th>
+                                <th>What it actually means (Simply Explained)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="var-name">pose.pose</td>
+                                <td class="var-type">Pose</td>
+                                <td>The estimated 3D position (X, Y, Z) and orientation of the rover relative to its start point.</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">pose.covariance</td>
+                                <td class="var-type">float64[36]</td>
+                                <td>A grid indicating the system's uncertainty. Small numbers mean high certainty; large numbers mean the estimates are drifting or unreliable.</td>
+                            </tr>
+                            <tr>
+                                <td class="var-name">twist.twist</td>
+                                <td class="var-type">Twist</td>
+                                <td>The speed of the rover, split into linear velocity (vx, vy, vz in m/s) and angular speed (vyaw in rad/s).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <p><strong>Used by:</strong> The **robot_localization EKF Filter** node to merge wheel encoders and visual positioning.</p>
+
+                    <div class="route-section-title">The "Covariance Bubble" Analogy:</div>
+                    <p>Imagine walking in a dark hallway. If you walk 3 steps, you are highly certain of your position (small covariance). If you walk 50 steps without looking, your uncertainty grows (large covariance bubble). The EKF uses these numbers to decide whether to trust the camera or the wheel encoders during sand drifts.</p>
+
+                    <p><strong>Concrete Example:</strong> As the rover rolls over rocks, the visual tracker outputs a linear speed of 0.2 m/s along the X-axis (forward) with a small covariance of 0.02. If dust blocks the camera lens, the tracking node detects feature loss and increases the covariance value to 0.85 (meaning "I am drifting and unsure"), telling the EKF to ignore the camera and trust the wheel encoders instead.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Structure -->
+        <div id="section-structure" class="doc-section">
+            <div class="glass-panel">
+                <h2>3. How is the Perception Module Structured?</h2>
+                <p>The perception pipeline runs sequentially. It takes camera inputs, cleans them, removes self-reflections, and then splits into three independent, parallel processing branches to compute localization, terrain models, and marker poses.</p>
+                
+                <div class="code-header">Pipeline Architecture Structure</div>
+                <pre><code>  [ Raw Left/Right Video + IMU ]  <-- USB 3.0 Handshake
+               │
+               ▼
+   [ Rectification & Alignment ]  <-- Align Depth pixel-for-pixel with Color
+               │
+               ▼
+   [ Crop Box Self-Filtering ]    <-- Erase points falling on the Rover chassis
+               │
+      ┌────────┴────────┬────────┐
+      ▼                 ▼        ▼
+  [Branch A]        [Branch B]   [Branch C]
+  Terrain Geometry   Fiducials    Visual Tracking
+      │                 │        (ORB Features)
+  RANSAC Ground     Grayscale           │
+      │             Threshold       Motion Estimation
+  Voxel Grid            │               │
+      │             Quad Warp      Sensor Fusion EKF
+  DBSCAN Cluster        │               │
+      │             solvePnP            │
+      ▼                 ▼               ▼
+[Costmap Output]   [6-DoF Pose]    [Fused Odometry]</code></pre>
+            </div>
+        </div>
+
+        <!-- Section 4: Implementation Guide -->
+        <div id="section-implementation" class="doc-section">
+            <div class="glass-panel">
+                <h2>4. Pipeline Branches & Steps to Implement Each</h2>
+                <p>This section outlines the steps to build each processing branch from the ground up, detailing what the algorithms do in simple terms.</p>
+
+                <!-- Route 1 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-camera"></i> Route 1: Ingestion & Depth-to-Color Alignment</h4>
+                    <p><strong>What it does:</strong> Establishes a hardware connection to the camera, corrects lens distortion, and aligns the depth coordinates to match color pixels.</p>
+                    <div class="route-section-title">Implementation Steps:</div>
+                    <ol>
+                        <li>Configure the camera frame rate to 15 FPS at 640x480 resolution to conserve Jetson compute.</li>
+                        <li>Read calibration matrices (focal length, baseline offset) from the camera's internal memory.</li>
+                        <li>Remap/rectify raw images so left and right stereo images align perfectly on the same pixel rows.</li>
+                        <li>Calculate the coordinate offset (extrinsics) to warp the depth map onto the color grid.</li>
+                    </ol>
+                </div>
+
+                <!-- Route 2 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-mountain"></i> Route 2: Terrain Geometry & Obstacle Detection</h4>
+                    <p><strong>What it does:</strong> Crops the robot chassis out of the point cloud, isolates the ground, downsamples, and clusters hazards.</p>
+                    <div class="route-section-title">How the algorithms work (Simply Explained):</div>
+                    <ul>
+                        <li><strong>CropBox Self-Filter:</strong> Draws a virtual 3D box around the rover coordinates and discards any points inside to prevent the rover from seeing its own tires or arm.</li>
+                        <li><strong>RANSAC Ground Plane Removal:</strong> Fits a flat mathematical plane to the point cloud. Points on this plane are labeled "Ground" and removed, leaving only hazards sticking up.</li>
+                        <li><strong>Voxel Grid Downsampling:</strong> Divides space into cubes (voxels) and averages points inside each voxel to reduce point cloud density by 90%.</li>
+                        <li><strong>Euclidean / DBSCAN Clustering:</strong> Groups remaining points that sit close to each other, labeling each group as a distinct hazard (rock or crater).</li>
+                    </ul>
+                </div>
+
+                <!-- Route 3 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-qrcode"></i> Route 3: Fiducial Tags & Marker Detection</h4>
+                    <p><strong>What it does:</strong> Finds printed ArUco tags, decodes their ID, and calculates their relative distance and rotation.</p>
+                    <div class="route-section-title">How the algorithms work (Simply Explained):</div>
+                    <ul>
+                        <li><strong>Adaptive Thresholding:</strong> Converts the frame to high-contrast black and white to isolate tag borders.</li>
+                        <li><strong>Homography Warp:</strong> Corrects perspective skew. If a tag is viewed from the side, it looks like a trapezoid; this warp stretches it back to a flat 2D square.</li>
+                        <li><strong>solvePnP:</strong> Perspective-n-Point. Since the tag has a known physical size (e.g. 15cm), solvePnP measures the pixel coordinates of the corners to calculate the tag's exact 3D distance and rotation.</li>
+                    </ul>
+                </div>
+
+                <!-- Route 4 -->
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-location-crosshairs"></i> Route 4: Visual Tracking & Sensor Fusion</h4>
+                    <p><strong>What it does:</strong> Tracks rover motion via the camera and fuses it with wheel encoders to output drift-corrected odometry.</p>
+                    <div class="route-section-title">How the algorithms work (Simply Explained):</div>
+                    <ul>
+                        <li><strong>ORB Keypoint Tracking:</strong> Tracks visual landmark points (e.g. rock corners) across sequential frames. If points shift backward, the rover is moving forward.</li>
+                        <li><strong>EKF Sensor Fusion (Extended Kalman Filter):</strong> Blends the camera's visual odometry with wheel encoders. If wheels spin in loose sand, the EKF filters out the slip to maintain an accurate position estimate.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Packages -->
+        <div id="section-packages" class="doc-section">
+            <div class="glass-panel">
+                <h2>5. Ready-Made Packages & Sizing</h2>
+                <p>Do not write these complex algorithms from scratch. Instead, build your perception system by configuring ready-made open-source ROS 2 packages:</p>
+                
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-cubes"></i> 1. For Camera Ingestion & Alignment</h4>
+                    <p>Use **`realsense2_camera`** or **`zed_wrapper`**.</p>
+                    <p><strong>How to do it:</strong> Set launch flags to enable depth-color alignment and IMU interpolation:</p>
+                    <pre><code>ros2 launch realsense2_camera rs_launch.py align_depth.enable:=true enable_gyro:=true enable_accel:=true unite_imu_method:=2</code></pre>
+                </div>
+
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-filter"></i> 2. For Chassis Self-Filtering</h4>
+                    <p>Use **`sensor_filters`**.</p>
+                    <p><strong>How to do it:</strong> Configure a `CropBox` filter node to crop out coordinates within your rover's physical dimensions (e.g., $X \in [-0.5, 0.5]$ meters).</p>
+                </div>
+
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-mountain"></i> 3. For Terrain Mapping & Obstacle Costmaps</h4>
+                    <p>Use the standard **`Nav2 Obstacle Layer` / `Voxel Layer`**.</p>
+                    <p><strong>How to do it:</strong> Configure Nav2 parameter files (`nav2_params.yaml`) to subscribe to the point cloud topic. Nav2 has built-in parameters to filter ground planes and mark obstacles automatically.</p>
+                </div>
+
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-qrcode"></i> 4. For Fiducial Tags (ArUco Detection)</h4>
+                    <p>Use the open-source **`ros2_aruco`** package.</p>
+                    <p><strong>How to do it:</strong> Specify the topic inputs (rectified color image + camera info), the printed marker size in meters (e.g. `0.15`), and dictionary lookup parameters.</p>
+                </div>
+
+                <div class="route-card">
+                    <h4><i class="fa-solid fa-arrows-spin"></i> 5. For Sensor Fusion (Visual Odom + Wheel Encoders)</h4>
+                    <p>Use **`robot_localization` (EKF)**.</p>
+                    <p><strong>How to do it:</strong> Set up the EKF yaml configuration to read absolute pose from your camera's visual odometry and linear velocity from wheel encoders to publish a unified `/odom` coordinate frame.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Self-Study -->
+        <div id="section-self-study" class="doc-section">
+            <!-- Study Milestone Checklist -->
+            <div class="glass-panel">
+                <h2>6. Self-Study Milestones & Notes</h2>
+                <p>Check off the milestones as you complete your testing or study sessions. Progress is saved locally in your browser.</p>
+                
+                <label class="interactive-todo">
+                    <input type="checkbox" id="check-1" onchange="updateProgress()">
+                    <span>Explain what is required from the perception module in general (Bandwidth, Sync, Alignment).</span>
+                </label>
+                <label class="interactive-todo">
+                    <input type="checkbox" id="check-2" onchange="updateProgress()">
+                    <span>Describe the outputs of the module (Costmaps, Obstacle maps, Landmark Poses, Odometry).</span>
+                </label>
+                <label class="interactive-todo">
+                    <input type="checkbox" id="check-3" onchange="updateProgress()">
+                    <span>Describe the internal structure and branches of the perception pipeline.</span>
+                </label>
+                <label class="interactive-todo">
+                    <input type="checkbox" id="check-4" onchange="updateProgress()">
+                    <span>Explain the steps and algorithms to implement each module (RANSAC, solvePnP, ORB, EKF).</span>
+                </label>
+                <label class="interactive-todo">
+                    <input type="checkbox" id="check-5" onchange="updateProgress()">
+                    <span>List and configure ready-made packages (realsense_ros, ros2_aruco, Nav2, robot_localization).</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Notes / Document Modifications -->
+        <div class="notes-container">
+            <div class="notes-header">
+                <h3 style="font-family: 'Outfit'; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-pen-clip" style="color: var(--accent-cyan);"></i> Interactive Study Notes & incremental Additions
+                </h3>
+                <span style="font-size: 0.8rem; color: var(--text-muted);">Autosaves to local workspace storage</span>
+            </div>
+            <textarea class="notes-textarea" id="studyNotes" placeholder="Write down your learning notes, specific calibration results, code snippets, or parameters here..." oninput="saveNotes()"></textarea>
+        </div>
+    </main>
+
+    <script>
+        // Section tabs switcher
+        function switchSection(sectionId) {
+            document.querySelectorAll('.doc-section').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelectorAll('.menu-item').forEach(el => {
+                el.classList.remove('active');
+            });
+            
+            document.getElementById(`section-${sectionId}`).classList.add('active');
+            
+            // Highlight sidebar item
+            const menuBtns = document.querySelectorAll('.menu-item');
+            menuBtns.forEach(btn => {
+                if(btn.getAttribute('onclick').includes(sectionId)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Set top title
+            const titles = {
+                'requirements': '1. General Requirements',
+                'outputs': '2. Pipeline Outputs',
+                'structure': '3. Pipeline Structure',
+                'implementation': '4. Node & Steps Guide',
+                'packages': '5. Ready-Made Packages',
+                'self-study': 'Self-Study & Progress'
+            };
+            document.getElementById('pageTitle').innerText = titles[sectionId] || 'Guide';
+        }
+
+        // Checklist Progress
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('.interactive-todo input[type="checkbox"]');
+            let checkedCount = 0;
+            checkboxes.forEach(cb => {
+                if(cb.checked) checkedCount++;
+                localStorage.setItem(cb.id + '_realsense_detailed_v5', cb.checked);
+            });
+            
+            const percent = checkboxes.length ? Math.round((checkedCount / checkboxes.length) * 100) : 0;
+            document.getElementById('progressPercent').innerText = percent + '%';
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        function loadProgress() {
+            const checkboxes = document.querySelectorAll('.interactive-todo input[type="checkbox"]');
+            checkboxes.forEach(cb => {
+                const val = localStorage.getItem(cb.id + '_realsense_detailed_v5');
+                if(val === 'true') {
+                    cb.checked = true;
+                }
+            });
+            updateProgress();
+        }
+
+        // Study Notes Autosave
+        function saveNotes() {
+            const notes = document.getElementById('studyNotes').value;
+            localStorage.setItem('realsense_perception_notes_detailed_v5', notes);
+        }
+
+        function loadNotes() {
+            const saved = localStorage.getItem('realsense_perception_notes_detailed_v5');
+            if(saved) {
+                document.getElementById('studyNotes').value = saved;
+            }
+        }
+
+        // Export custom study notes and base markdown guide
+        function exportMarkdown() {
+            const notes = document.getElementById('studyNotes').value;
+            const mdContent = `# Ultimate Mars Rover Perception Guide
+
+(Base study documentation with user-added study additions)
+
+---
+
+## 1. General Requirements
+*   Bandwidth control to avoid Jetson overload.
+*   Denoising to clean stereo matching flicker.
+*   Depth-to-Color Reprojection for spatial matching.
+*   Hardware timestamping for strict synchronization.
+
+## 2. Pipeline Outputs (Detailed Variables)
+*   OccupancyGrid (resolution, width/height, origin, data) -> Used by Nav2.
+*   PointCloud2 (fields, data, is_dense) -> Used by MoveIt.
+*   PoseStamped (frame_id, pose.position, pose.orientation) -> Used by Arm IK.
+*   Odometry (pose, covariance, twist) -> Used by EKF.
+
+## 3. Pipeline Structure
+Ingestion -> Alignment -> Self-filtering (Cropbox) -> Splits (Terrain/Fiducials/VO Tracking).
+
+## 4. Implementation Steps
+*   Route 1: Downscale frame profiles and reproject depth to color.
+*   Route 2: Apply CropBox filter and pass remaining points to Nav2 Costmap voxel layer (RANSAC + voxels).
+*   Route 3: Run ros2_aruco with marker dimensions to get 6-DoF poses, and map them to base_link via TF2.
+*   Route 4: Extract ORB features to track motion, fusing with wheel encoders using EKF.
+
+## 5. Ready-Made Packages
+realsense2_camera/zed_wrapper, sensor_filters, Nav2 costmap layers, ros2_aruco, robot_localization.
+
+---
+
+## User Added Study Notes:
+${notes || "No extra study notes entered."}
+`;
+            
+            const blob = new Blob([mdContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'realsense_perception_guide_incremental.md';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialization
+        window.onload = () => {
+            loadProgress();
+            loadNotes();
+        };
+    </script>
+</body>
+</html>

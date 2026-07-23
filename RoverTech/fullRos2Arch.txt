@@ -1,0 +1,32 @@
+Perception:
+    subscribes to: 
+        - zed camera
+    publishes:
+        - aruco detections
+        - obstacle detections
+
+SLAM: 
+    subscribes to: 
+        - zed IMU
+        - zed camera
+        - aruco detections
+        - obstacle detections
+        - initial Height Map
+    publishes:
+        - updated height map (or updates - design choice)
+        - Odometry / State Estimation
+
+Path Planning: 
+    subscribes to: 
+        - Odometry
+        - updated height map
+    publishes:
+        - path
+        - state (for control - to be discussed)
+
+Control: 
+    subscribes to: 
+        - Odometry
+        - path
+    publishes: 
+        - control commands
