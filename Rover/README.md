@@ -7,6 +7,7 @@ This directory contains packages defining the Mars Rover style robot model, simu
 *   **[my_robot_description](my_robot_description)**: URDF xacro description and ROS 2 launch system for spawning the rover.
 *   **[worlds](worlds)**: Defines environments (Mars Yard and empty worlds) and provides helper launch scripts.
 *   **[marsyard](marsyard)**: Model definitions and configurations representing physical Mars Yard terrains.
+*   **[rock_generator](rock_generator)**: Spawns rocks, procedural obstacles, and generates obstacle mapping databases.
 
 ---
 

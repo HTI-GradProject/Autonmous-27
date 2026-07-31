@@ -30,13 +30,19 @@ def launch_setup(context, *args, **kwargs):
     # Retrieve the world launch argument
     world_file = LaunchConfiguration('world').perform(context)
     
-    # Determine the world file path and extract the world name from the SDF/World file
-    pkg_worlds = FindPackageShare('worlds').find('worlds')
+    # Get package share and marsyard data directory
+    pkg_share = FindPackageShare('my_robot_description').find('my_robot_description')
+    marsyard_dir = '/home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/MarsYardData'
+    
+    # Resolve world path
     if os.path.isabs(world_file):
         world_path = world_file
+    elif os.path.exists(os.path.join(marsyard_dir, world_file)):
+        world_path = os.path.join(marsyard_dir, world_file)
     else:
-        world_path = os.path.join(pkg_worlds, 'worlds', world_file)
+        world_path = os.path.join(pkg_share, 'worlds', world_file)
         
+    # Determine the world name inside the SDF/World file
     world_name = "rover_world"
     if "empty" in world_file:
         world_name = "empty"
@@ -50,9 +56,43 @@ def launch_setup(context, *args, **kwargs):
         except Exception as e:
             print(f"[gazebo.launch] Error reading world file: {e}")
 
-    # Get the my_robot_description package share directory
-    pkg_share = FindPackageShare('my_robot_description').find('my_robot_description')
+    # Set up Gazebo resource paths to find marsyard and rock models
+    resource_paths = [
+        marsyard_dir,
+        os.path.join(marsyard_dir, 'models'),
+        os.path.join(pkg_share, 'worlds'),
+        os.path.join(pkg_share, '..'),  # to resolve package://my_robot_description
+        '/home/saif/Desktop/ROAR/rock_generator',
+        '/home/saif/Desktop/ROAR/rock_generator/rocks_ws',
+    ]
+
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        pkg_marsyard = get_package_share_directory('marsyard')
+        resource_paths.append(os.path.join(pkg_marsyard, 'models'))
+        resource_paths.append(pkg_marsyard)
+        
+        pkg_worlds = get_package_share_directory('worlds')
+        resource_paths.append(os.path.join(pkg_worlds, 'worlds'))
+        resource_paths.append(pkg_worlds)
+        resource_paths.append(os.path.dirname(pkg_worlds))
+    except Exception as e:
+        print(f"[gazebo.launch] Share paths resolution: {e}")
     
+    ign_existing = os.environ.get('IGN_GAZEBO_RESOURCE_PATH', '')
+    gz_existing = os.environ.get('GZ_SIM_RESOURCE_PATH', '')
+    
+    ign_path = os.pathsep.join(resource_paths)
+    if ign_existing:
+        ign_path = ign_path + os.pathsep + ign_existing
+        
+    gz_path = os.pathsep.join(resource_paths)
+    if gz_existing:
+        gz_path = gz_path + os.pathsep + gz_existing
+        
+    os.environ['IGN_GAZEBO_RESOURCE_PATH'] = ign_path
+    os.environ['GZ_SIM_RESOURCE_PATH'] = gz_path
+
     # Path to the xacro file
     xacro_file = os.path.join(pkg_share, 'urdf', 'my_robot.urdf.xacro')
     
@@ -72,13 +112,15 @@ def launch_setup(context, *args, **kwargs):
         ]
     )
     
-    # Gazebo Launch using the worlds package's custom launch file (which sets up model resource paths)
+    # Gazebo Launch using standard ros_gz_sim package
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([
-            os.path.join(pkg_worlds, 'launch', 'launch_map.launch.py')
+            os.path.join(FindPackageShare('ros_gz_sim').find('ros_gz_sim'),
+                        'launch', 'gz_sim.launch.py')
         ]),
         launch_arguments={
-            'world': world_file
+            'gz_args': ['-r ', world_path],
+            'on_exit_shutdown': 'true'
         }.items()
     )
     
