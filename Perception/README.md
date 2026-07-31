@@ -54,9 +54,14 @@ You can validate the perception node using two distinct workflows:
 ### Method A: Testing with the Simulated Rover (Recommended)
 This closed-loop test runs the active rover simulation inside the Mars Yard world in Gazebo alongside the perception node.
 
-1.  **Start the Rover Simulation:**
+1.  **Start the World & Rover Simulation:**
+    First, launch the Mars Yard world:
     ```bash
-    ros2 launch my_robot_description gazebo.launch.py
+    ros2 launch worlds world1.launch.py
+    ```
+    Next, in a new terminal, spawn the rover:
+    ```bash
+    ros2 launch my_robot_description gazebo.launch.py world:=world1.world
     ```
 2.  **Launch the Terrain Geometry Node:**
     ```bash

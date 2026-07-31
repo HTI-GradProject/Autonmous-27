@@ -5,9 +5,7 @@ This ROS 2 workspace contains packages for simulating and controlling the autono
 ## Directory Structure
 
 *   **[Rover/my_robot_description](Rover/my_robot_description)** - URDF model description, configurations, and spawn/launch scripts for the test rover.
-*   **[Rover/worlds](Rover/worlds)** - The environment package containing Mars Yard and empty world definitions.
-*   **[Rover/marsyard](Rover/marsyard)** - 3D models and configuration for the Mars Yard terrain.
-*   **[MarsYardData](../MarsYardData)** - Datasets, elevation maps, and the `world1.world` environment file.
+*   **[worlds](worlds)** - The environment package containing worlds (including `world1.world` and others), local models (such as `mars_yard` terrain and `rocks`), launch files, and costmap data.
 
 ---
 
@@ -40,7 +38,7 @@ ros2 launch my_robot_description gazebo.launch.py
 ```
 
 > [!NOTE]
-> By default, the launch file is configured to load `world1.world` and spawn the rover at a safe altitude (`z:=0.5`) to prevent collisions on startup.
+> By default, the launch file is configured to load `world1.world` (with rocks scaled up to 2.5x) and spawn the rover at a safe altitude (`z:=0.5`) to prevent collisions on startup.
 >
 > If you want to launch the rover in the **empty world** instead, run:
 > ```bash
@@ -51,11 +49,23 @@ ros2 launch my_robot_description gazebo.launch.py
 
 ## 2. Launching the World Only (Without Rover)
 
-To launch only the Mars Yard simulation world without spawning the rover, run:
+To launch only the Mars Yard simulation world (with rocks) without spawning the rover, run:
 
 ```bash
-ros2 launch worlds launch_map.launch.py world:=world1.world
+ros2 launch worlds world1.launch.py
 ```
+
+To launch the empty Mars Yard layout, run:
+```bash
+ros2 launch worlds launch_map.launch.py world:=marsyard.world
+```
+
+---
+
+## Testing & Verification Guide
+
+For a complete step-by-step tutorial on launching, driving the rover, starting the perception pipeline, and validating inputs/outputs in RViz2, refer to the local guide:
+* **[testing_guide.md](testing_guide.md)**
 
 ---
 
