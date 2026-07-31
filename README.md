@@ -4,20 +4,20 @@ This ROS 2 workspace contains packages for simulating and controlling the autono
 
 ## Directory Structure
 
-*   **[Rover/my_robot_description](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/my_robot_description)** - URDF model description, configurations, and spawn/launch scripts for the test rover.
-*   **[Rover/worlds](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/worlds)** - The environment package containing Mars Yard and empty world definitions.
-*   **[Rover/marsyard](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/marsyard)** - 3D models and configuration for the Mars Yard terrain.
-*   **[MarsYardData](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/MarsYardData)** - Datasets, elevation maps, and the `world1.world` environment file.
+*   **[Rover/my_robot_description](Rover/my_robot_description)** - URDF model description, configurations, and spawn/launch scripts for the test rover.
+*   **[Rover/worlds](Rover/worlds)** - The environment package containing Mars Yard and empty world definitions.
+*   **[Rover/marsyard](Rover/marsyard)** - 3D models and configuration for the Mars Yard terrain.
+*   **[MarsYardData](../MarsYardData)** - Datasets, elevation maps, and the `world1.world` environment file.
 
 ---
 
 ## Setup & Compilation
 
-To build the workspace without keeping the output build artifacts in your Git repository, compile from **outside** the `Autonmous_Ws` folder (at the parent directory `/home/saif/Desktop/MESEKET/Autonmous-27`):
+To build the workspace without keeping the output build artifacts in your Git repository, compile from **outside** the `Autonmous_Ws` folder (at the repository root directory where you cloned it):
 
 ```bash
-# Go to the root workspace directory (outside Autonmous_Ws)
-cd /home/saif/Desktop/MESEKET/Autonmous-27
+# Go to the root repository directory (outside Autonmous_Ws)
+cd /path/to/your/cloned/repository
 
 # Sourcing standard ROS 2 (Humble)
 source /opt/ros/humble/setup.bash

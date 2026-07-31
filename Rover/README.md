@@ -4,9 +4,9 @@ This directory contains packages defining the Mars Rover style robot model, simu
 
 ## Subdirectories
 
-*   **[my_robot_description](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/my_robot_description)**: URDF xacro description and ROS 2 launch system for spawning the rover.
-*   **[worlds](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/worlds)**: Defines environments (Mars Yard and empty worlds) and provides helper launch scripts.
-*   **[marsyard](file:///home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Rover/marsyard)**: Model definitions and configurations representing physical Mars Yard terrains.
+*   **[my_robot_description](my_robot_description)**: URDF xacro description and ROS 2 launch system for spawning the rover.
+*   **[worlds](worlds)**: Defines environments (Mars Yard and empty worlds) and provides helper launch scripts.
+*   **[marsyard](marsyard)**: Model definitions and configurations representing physical Mars Yard terrains.
 
 ---
 

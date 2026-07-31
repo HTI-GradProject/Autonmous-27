@@ -33,8 +33,8 @@ The core processing node (`terrain_node`) communicates over the following ROS 2 
 
 Make sure your workspace is built and sourced:
 ```bash
-# Compile and source workspace from root
-cd /home/saif/Desktop/MESEKET/Autonmous-27
+# Compile and source workspace from the repository root (outside Autonmous_Ws)
+cd /path/to/your/cloned/repository
 source /opt/ros/humble/setup.bash
 colcon build
 source install/setup.bash
