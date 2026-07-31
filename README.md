@@ -56,3 +56,34 @@ To launch only the Mars Yard simulation world without spawning the rover, run:
 ```bash
 ros2 launch worlds launch_map.launch.py world:=world1.world
 ```
+
+---
+
+## Git Workflow & Best Practices
+
+To avoid conflicts and keep the repository clean, follow this workflow when working on the project:
+
+### 1. Always Pull Before Editing
+Before making any changes locally, pull the latest changes from the remote repository to ensure you are up-to-date:
+```bash
+git pull origin main
+```
+
+### 2. Make Your Edits
+Perform your development, edit code files, and verify changes locally.
+
+### 3. Stage and Commit Your Changes
+Add your modified files (excluding ignored datasets and build outputs) and commit them with a descriptive message:
+```bash
+# Add modified/new files
+git add .
+
+# Commit with a clear note
+git commit -m "Descriptive summary of the changes made"
+```
+
+### 4. Push to Remote
+Publish your clean commits to the GitHub repository:
+```bash
+git push origin main
+```
