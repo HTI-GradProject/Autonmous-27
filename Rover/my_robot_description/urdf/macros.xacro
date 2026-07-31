@@ -1,0 +1,160 @@
+<?xml version="1.0"?>
+<!-- 
+  macros.xacro - Reusable macros for robot components
+  
+  This file defines xacro macros for:
+  - Inertial property calculations (box, cylinder, sphere)
+  - Wheel creation (link + joint)
+  
+  Macros reduce repetition and make the robot description maintainable.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Inertia formula constants (physics-based) -->
+  <xacro:property name="box_ixx_iyy_izz_factor" value="${1.0/12.0}"/>
+  <xacro:property name="cylinder_ixx_izz_factor" value="${1.0/12.0}"/>
+  <xacro:property name="cylinder_iyy_factor" value="${1.0/2.0}"/>
+  <xacro:property name="sphere_factor" value="${2.0/5.0}"/>
+
+  <!-- 
+    Box Inertia Macro
+    Calculates inertia tensor for a box-shaped object
+    Formula: I = (m/12) * (dimension1² + dimension2²)
+    Parameters:
+      m - mass (kg)
+      x - length along x-axis (m)
+      y - length along y-axis (m)
+      z - length along z-axis (m)
+  -->
+  <xacro:macro name="box_inertia" params="m x y z">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${m}"/>
+      <inertia 
+        ixx="${box_ixx_iyy_izz_factor * m * (y*y + z*z)}" ixy="0.0" ixz="0.0"
+        iyy="${box_ixx_iyy_izz_factor * m * (x*x + z*z)}" iyz="0.0"
+        izz="${box_ixx_iyy_izz_factor * m * (x*x + y*y)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- 
+    Cylinder Inertia Macro
+    Calculates inertia tensor for a cylinder-shaped object
+    Formula: Ixx/Izz = (m/12)*(3r² + h²), Iyy = (m/2)*r²
+    Parameters:
+      m - mass (kg)
+      r - radius (m)
+      h - height/length (m)
+    Note: Cylinder axis is along Y-axis (standard for wheels)
+  -->
+  <xacro:macro name="cylinder_inertia" params="m r h">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${m}"/>
+      <inertia 
+        ixx="${cylinder_ixx_izz_factor * m * (3*r*r + h*h)}" ixy="0.0" ixz="0.0"
+        iyy="${cylinder_iyy_factor * m * r*r}" iyz="0.0"
+        izz="${cylinder_ixx_izz_factor * m * (3*r*r + h*h)}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- 
+    Sphere Inertia Macro
+    Calculates inertia tensor for a sphere-shaped object
+    Formula: I = (2/5) * m * r²
+    Parameters:
+      m - mass (kg)
+      r - radius (m)
+  -->
+  <xacro:macro name="sphere_inertia" params="m r">
+    <inertial>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <mass value="${m}"/>
+      <inertia 
+        ixx="${sphere_factor * m * r * r}" ixy="0.0" ixz="0.0"
+        iyy="${sphere_factor * m * r * r}" iyz="0.0"
+        izz="${sphere_factor * m * r * r}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- 
+    Suspension Wheel Macro (Centered Connection)
+    Creates suspension arm (rectangular link) + wheel
+    Arm connects vertically through wheel CENTER
+    Parameters:
+      prefix - identifier (e.g., "left_front", "right_middle")
+      x_pos - x position relative to base_link (m)
+      y_pos - y position relative to base_link (m)
+      wheel_offset_x - wheel X offset from arm center (m)
+      wheel_offset_y - wheel Y offset from arm center (m)
+      wheel_offset_z - wheel Z offset from arm center (m)
+  -->
+  <xacro:macro name="suspension_wheel_macro" params="prefix x_pos y_pos wheel_offset_x wheel_offset_y wheel_offset_z">
+    
+    <!-- Suspension Arm Link (rectangular, extends downward) -->
+    <link name="${prefix}_arm_link">
+      <!-- Visual representation -->
+      <visual>
+        <geometry>
+          <box size="${arm_length} ${arm_width} ${arm_height}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <material name="gray"/>
+      </visual>
+      
+      <!-- Collision geometry -->
+      <collision>
+        <geometry>
+          <box size="${arm_length} ${arm_width} ${arm_height}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </collision>
+      
+      <!-- Inertial properties -->
+      <xacro:box_inertia m="${arm_mass}" x="${arm_length}" y="${arm_width}" z="${arm_height}"/>
+    </link>
+
+    <!-- Joint connecting base to suspension arm -->
+    <!-- Arm positioned with configurable X offset from wheel position -->
+    <joint name="${prefix}_arm_joint" type="fixed">
+      <parent link="${base_link_name}"/>
+      <child link="${prefix}_arm_link"/>
+      <origin xyz="${x_pos + arm_x_offset} ${y_pos} ${arm_z_offset}" rpy="0 0 0"/>
+    </joint>
+
+    <!-- Wheel Link -->
+    <link name="${prefix}_wheel_link">
+      <!-- Visual representation (cylinder for appearance) -->
+      <visual>
+        <geometry>
+          <cylinder radius="${wheel_radius}" length="${wheel_length}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="${pi/2} 0 0"/>
+        <material name="black"/>
+      </visual>
+      
+      <!-- Collision geometry (sphere for better simulation physics) -->
+      <collision>
+        <geometry>
+          <sphere radius="${wheel_radius}"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+      </collision>
+      
+      <!-- Inertial properties (using sphere for better simulation stability) -->
+      <xacro:sphere_inertia m="${wheel_mass}" r="${wheel_radius}"/>
+    </link>
+
+    <!-- Joint connecting suspension arm to wheel -->
+    <!-- Wheel positioned relative to arm using offset properties -->
+    <!-- Compensates for arm_x_offset to keep wheel at desired x_pos -->
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="${prefix}_arm_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="${wheel_offset_x - arm_x_offset} ${wheel_offset_y} ${wheel_offset_z}" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+
+  </xacro:macro>
+
+</robot>

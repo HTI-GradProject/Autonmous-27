@@ -1,0 +1,23 @@
+# Ignore ROS datasets and bags
+Perception/ros dataset/
+*.bag
+*.db3
+*.log
+
+# Python cache & virtual environments
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local build artifacts (just in case)
+build/
+install/
+log/

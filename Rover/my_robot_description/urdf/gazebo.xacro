@@ -1,0 +1,242 @@
+<?xml version="1.0"?>
+<!-- 
+  gazebo.xacro - Gazebo-specific properties and plugins
+  
+  This file defines Gazebo simulation properties for robot links:
+  - Material properties (friction, color)
+  - Physics properties
+  - Sensor plugins (to be added later)
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- Base Link Gazebo Properties -->
+  <gazebo reference="base_link">
+    <material>Gazebo/Red</material>
+    <mu1>0.2</mu1>
+    <mu2>0.2</mu2>
+  </gazebo>
+
+  <!-- Suspension Arms Gazebo Properties -->
+  <gazebo reference="left_front_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  
+  <gazebo reference="left_middle_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  
+  <gazebo reference="left_rear_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  
+  <gazebo reference="right_front_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  
+  <gazebo reference="right_middle_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+  
+  <gazebo reference="right_rear_arm_link">
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- Wheel Gazebo Properties -->
+  <!-- High friction for wheels, low damping for smooth rolling -->
+  <gazebo reference="left_front_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+  
+  <gazebo reference="left_middle_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+  
+  <gazebo reference="left_rear_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+  
+  <gazebo reference="right_front_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+  
+  <gazebo reference="right_middle_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+  
+  <gazebo reference="right_rear_wheel_link">
+    <material>Gazebo/Black</material>
+    <mu1>1.0</mu1>
+    <mu2>1.0</mu2>
+    <kp>1000000.0</kp>
+    <kd>1.0</kd>
+  </gazebo>
+
+  <!-- Differential Drive Plugin for Ignition Gazebo -->
+  <!-- This plugin allows controlling the robot using /cmd_vel topic -->
+  <!-- It simulates a differential drive robot using the middle wheels -->
+  <gazebo>
+    <plugin filename="ignition-gazebo-diff-drive-system" name="ignition::gazebo::systems::DiffDrive">
+      <!-- Wheel joints to control -->
+      <left_joint>left_middle_wheel_joint</left_joint>
+      <right_joint>right_middle_wheel_joint</right_joint>
+      
+      <!-- Wheel separation and diameter -->
+      <wheel_separation>0.49</wheel_separation>
+      <wheel_radius>0.06</wheel_radius>
+      
+      <!-- Limits -->
+      <max_linear_acceleration>1.0</max_linear_acceleration>
+      <max_angular_acceleration>2.0</max_angular_acceleration>
+      <max_velocity>1.0</max_velocity>
+      
+      <!-- Topic to receive velocity commands -->
+      <topic>cmd_vel</topic>
+      
+      <!-- Odometry -->
+      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_topic>odom</odom_topic>
+      <tf_topic>tf</tf_topic>
+      
+      <!-- Frame IDs -->
+      <frame_id>odom</frame_id>
+      <child_frame_id>base_footprint</child_frame_id>
+    </plugin>
+  </gazebo>
+
+  <!-- ========================================== -->
+  <!-- IMU SENSOR PLUGIN                          -->
+  <!-- Measures linear acceleration and angular   -->
+  <!-- velocity with realistic noise modeling     -->
+  <!-- ========================================== -->
+  <gazebo reference="imu_link">
+    <sensor name="imu_sensor" type="imu">
+      <always_on>1</always_on>
+      <update_rate>100</update_rate>
+      <visualize>true</visualize>
+      <topic>imu</topic>
+      <imu>
+        <angular_velocity>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+            </noise>
+          </z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+            </noise>
+          </z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+
+  <!-- ========================================== -->
+  <!-- CAMERA SENSOR PLUGIN                       -->
+  <!-- RGB camera for visual perception           -->
+  <!-- 640x480 resolution at 30 Hz                -->
+  <!-- ========================================== -->
+  
+  <!-- Camera Link Gazebo Properties (visual appearance) -->
+  <gazebo reference="camera_link">
+    <material>Gazebo/Black</material>
+    
+    <!-- RGBD Depth Camera sensor simulating Intel RealSense D435i -->
+    <sensor name="camera" type="rgbd">
+      <always_on>1</always_on>
+      <update_rate>30</update_rate>
+      <visualize>true</visualize>
+      <camera name="camera">
+        <!-- Horizontal field of view: ~86 degrees (1.5008 radians) for D435i -->
+        <horizontal_fov>1.5008</horizontal_fov>
+        <image>
+          <width>640</width>
+          <height>480</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>10.0</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.007</stddev>
+        </noise>
+      </camera>
+    </sensor>
+  </gazebo>
+
+
+  <gazebo reference="camera_joint">
+    <preserveFixedJoint>true</preserveFixedJoint>
+  </gazebo>
+
+  <!-- ========================================== -->
+  <!-- JOINT STATE PUBLISHER PLUGIN               -->
+  <!-- Publishes joint states for all joints      -->
+  <!-- ========================================== -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+    </plugin>
+  </gazebo>
+
+  <!-- ========================================== -->
+  <!-- IMU SYSTEM PLUGIN                          -->
+  <!-- Required for IMU sensor to work            -->
+  <!-- ========================================== -->
+  <gazebo>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
+    </plugin>
+  </gazebo>
+
+</robot>

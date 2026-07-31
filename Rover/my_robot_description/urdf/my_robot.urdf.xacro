@@ -1,0 +1,281 @@
+<?xml version="1.0"?>
+<!-- 
+  my_robot.urdf.xacro - Mars Rover Style Robot Description
+  
+  This file defines a 6-wheeled Mars rover style robot with:
+  - Square base (0.4m × 0.4m × 0.15m) in RED color
+  - 6 wheels: 3 on left side, 3 on right side
+  - Each wheel connected via continuous joint for driving
+  
+  The robot uses xacro macros for reusability and maintainability.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="my_robot">
+
+  <!-- Include macro and material definitions -->
+  <xacro:include filename="$(find my_robot_description)/urdf/macros.xacro"/>
+  <xacro:include filename="$(find my_robot_description)/urdf/materials.xacro"/>
+  <xacro:include filename="$(find my_robot_description)/urdf/gazebo.xacro"/>
+
+  <!-- Link name properties for cleaner references -->
+  <xacro:property name="base_link_name" value="base_link"/>
+  <xacro:property name="base_footprint_name" value="base_footprint"/>
+
+  <!-- Robot Dimensions (xacro properties for easy modification) -->
+  <!-- Base dimensions - SQUARE for Mars rover style -->
+  <xacro:property name="base_length" value="0.4"/>
+  <xacro:property name="base_width" value="0.4"/>
+  <xacro:property name="base_height" value="0.15"/>
+  <xacro:property name="base_mass" value="5.0"/>
+
+  <!-- Wheel dimensions - Smaller for better proportions -->
+  <xacro:property name="wheel_radius" value="0.06"/>
+  <xacro:property name="wheel_length" value="0.05"/>
+  <xacro:property name="wheel_mass" value="0.6"/>
+
+  <!-- Suspension arm dimensions (rectangular links) -->
+  <xacro:property name="arm_length" value="0.03"/>
+  <xacro:property name="arm_width" value="0.02"/>
+  <xacro:property name="arm_height" value="0.12"/>
+  <xacro:property name="arm_mass" value="0.2"/>
+  
+  <!-- Arm position offsets: control arm position relative to wheel -->
+  <!-- X offset: move arm forward (+) or backward (-) from wheel center -->
+  <xacro:property name="arm_x_offset" value="0"/>  <!-- Forward/backward offset -->
+  
+  <!-- Arm Z offset control: adjust arm vertical position relative to base -->
+  <!-- Default: arm top touches base bottom. Increase to lower arms, decrease to raise -->
+  <xacro:property name="arm_z_adjustment" value="0"/>  <!-- Additional vertical offset for arms -->
+  
+  <!-- Z offset: arms attach below the base, top of arm flush with bottom of base -->
+  <!-- Arm center should be at: -base_height/2 (base bottom) - arm_height/2 (to center of arm) + adjustment -->
+  <!-- This ensures arm top is at -base_height/2 (touching base bottom) by default -->
+  <xacro:property name="arm_z_offset" value="${-base_height/2 - arm_height/2 + arm_z_adjustment}"/>
+
+  <!-- Wheel positioning -->
+  <!-- 
+    TO SHIFT SUSPENSION ARMS AND WHEELS:
+    - Edit wheel_x_front, wheel_x_middle, wheel_x_rear to move wheels forward/backward
+    - Edit arm_y_offset to move arms (and wheels) left/right
+    - Edit arm_x_offset to move arms forward/backward relative to wheels
+    - Edit arm_z_adjustment to move arms up/down
+  -->
+
+  <!-- Z offset: arms attach below the base, top of arm flush with bottom of base -->
+  <!-- Arm center should be at: -base_height/2 (base bottom) - arm_height/2 (to center of arm) + adjustment -->
+  <!-- This ensures arm top is at -base_height/2 (touching base bottom) by default -->
+  <xacro:property name="arm_z_offset" value="${-base_height/2 - arm_height/2 + arm_z_adjustment}"/>
+  <!-- Y offset: arms extend from sides of base (outside the base body) -->
+  <xacro:property name="arm_y_offset" value="0.21"/>
+  <!-- X positions: front, middle, rear (evenly spaced along base length) -->
+  <xacro:property name="wheel_x_front" value="0.15"/>
+  <xacro:property name="wheel_x_middle" value="0.0"/>
+  <xacro:property name="wheel_x_rear" value="-0.15"/>
+  
+  <!-- Wheel offset relative to arm link (fine-tune wheel position) -->
+  <!-- These control where the wheel attaches to the arm -->
+  <!-- LEFT WHEELS -->
+  <xacro:property name="wheel_offset_x_left" value="0"/>           <!-- Forward/backward from arm center -->
+  <xacro:property name="wheel_offset_y_left" value="0.035"/>           <!-- Outward/inward from arm center -->
+  <xacro:property name="wheel_offset_z_left" value="${-arm_height/2}"/>  <!-- Vertical (default: arm bottom) -->
+  
+  <!-- RIGHT WHEELS -->
+  <xacro:property name="wheel_offset_x_right" value="0"/>          <!-- Forward/backward from arm center -->
+  <xacro:property name="wheel_offset_y_right" value="-0.035"/>          <!-- Outward/inward from arm center -->
+  <xacro:property name="wheel_offset_z_right" value="${-arm_height/2}"/> <!-- Vertical (default: arm bottom) -->
+  
+  <!-- Arm Z offset control: adjust arm vertical position relative to base -->
+  <!-- Default: arm top touches base bottom. Increase to lower arms, decrease to raise -->
+  <xacro:property name="arm_z_adjustment" value="0.02"/>  <!-- Additional vertical offset for arms -->
+  
+  
+  <!-- ========================================== -->
+  <!-- BASE FOOTPRINT (Ground reference point)   -->
+  <!-- This link is at ground level (z=0)        -->
+  <!-- ========================================== -->
+  <link name="${base_footprint_name}">
+    <!-- Empty link - just a reference frame -->
+  </link>
+
+  <!-- Joint connecting footprint to base_link -->
+  <!-- Z offset calculated to place base above ground with wheels touching -->
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="${base_footprint_name}"/>
+    <child link="${base_link_name}"/>
+    <!-- Height = base_height/2 + arm_height + wheel_radius -->
+    <origin xyz="0 0 ${base_height/2 + arm_height + wheel_radius}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ========================================== -->
+  <!-- BASE LINK (Main robot body - SQUARE, RED) -->
+  <!-- ========================================== -->
+  <link name="${base_link_name}">
+    
+    <!-- Visual representation -->
+    <visual>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="red"/>
+    </visual>
+    
+    <!-- Collision geometry (matches visual) -->
+    <collision>
+      <geometry>
+        <box size="${base_length} ${base_width} ${base_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+    
+    <!-- Inertial properties using box macro -->
+    <xacro:box_inertia m="${base_mass}" x="${base_length}" y="${base_width}" z="${base_height}"/>
+    
+  </link>
+
+  <!-- ========================================== -->
+  <!-- SUSPENSION ARMS + WHEELS (Mars rover style) -->
+  <!-- 6 rectangular arms extending down from base -->
+  <!-- 6 wheels attached to bottom of arms         -->
+  <!-- ========================================== -->
+  
+  <!-- LEFT SIDE -->
+  <xacro:suspension_wheel_macro prefix="left_front" 
+                                x_pos="${wheel_x_front}" 
+                                y_pos="${arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_left}"
+                                wheel_offset_y="${wheel_offset_y_left}"
+                                wheel_offset_z="${wheel_offset_z_left}"/>
+
+  <xacro:suspension_wheel_macro prefix="left_middle" 
+                                x_pos="${wheel_x_middle}" 
+                                y_pos="${arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_left}"
+                                wheel_offset_y="${wheel_offset_y_left}"
+                                wheel_offset_z="${wheel_offset_z_left}"/>
+
+  <xacro:suspension_wheel_macro prefix="left_rear" 
+                                x_pos="${wheel_x_rear}" 
+                                y_pos="${arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_left}"
+                                wheel_offset_y="${wheel_offset_y_left}"
+                                wheel_offset_z="${wheel_offset_z_left}"/>
+
+  <!-- RIGHT SIDE -->
+  <xacro:suspension_wheel_macro prefix="right_front" 
+                                x_pos="${wheel_x_front}" 
+                                y_pos="${-arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_right}"
+                                wheel_offset_y="${wheel_offset_y_right}"
+                                wheel_offset_z="${wheel_offset_z_right}"/>
+
+  <xacro:suspension_wheel_macro prefix="right_middle" 
+                                x_pos="${wheel_x_middle}" 
+                                y_pos="${-arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_right}"
+                                wheel_offset_y="${wheel_offset_y_right}"
+                                wheel_offset_z="${wheel_offset_z_right}"/>
+
+  <xacro:suspension_wheel_macro prefix="right_rear" 
+                                x_pos="${wheel_x_rear}" 
+                                y_pos="${-arm_y_offset}"
+                                wheel_offset_x="${wheel_offset_x_right}"
+                                wheel_offset_y="${wheel_offset_y_right}"
+                                wheel_offset_z="${wheel_offset_z_right}"/>
+
+  <!-- ========================================== -->
+  <!-- IMU SENSOR                                 -->
+  <!-- Positioned at base_link center of mass     -->
+  <!-- ========================================== -->
+  
+  <!-- IMU dimensions -->
+  <xacro:property name="imu_length" value="0.02"/>
+  <xacro:property name="imu_width" value="0.02"/>
+  <xacro:property name="imu_height" value="0.01"/>
+  <xacro:property name="imu_mass" value="0.01"/>
+  
+  <!-- IMU Link -->
+  <link name="imu_link">
+    <!-- Visual representation -->
+    <visual>
+      <geometry>
+        <box size="${imu_length} ${imu_width} ${imu_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="gray"/>
+    </visual>
+    
+    <!-- Collision geometry -->
+    <collision>
+      <geometry>
+        <box size="${imu_length} ${imu_width} ${imu_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+    
+    <!-- Inertial properties using box macro -->
+    <xacro:box_inertia m="${imu_mass}" x="${imu_length}" y="${imu_width}" z="${imu_height}"/>
+  </link>
+  
+  <!-- Joint connecting base_link to IMU -->
+  <!-- IMU positioned at base_link origin (center of mass) -->
+  <!-- Identity orientation: X-forward, Y-left, Z-up (REP 105) -->
+  <joint name="imu_joint" type="fixed">
+    <parent link="${base_link_name}"/>
+    <child link="imu_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- ========================================== -->
+  <!-- CAMERA SENSOR                              -->
+  <!-- Positioned on front face of base_link      -->
+  <!-- Pitched down 15° for ground viewing        -->
+  <!-- ========================================== -->
+  
+  <!-- Camera dimensions -->
+  <xacro:property name="camera_length" value="0.03"/>
+  <xacro:property name="camera_width" value="0.08"/>
+  <xacro:property name="camera_height" value="0.03"/>
+  <xacro:property name="camera_mass" value="0.05"/>
+  
+  <!-- Camera position offsets relative to base_link -->
+  <xacro:property name="camera_offset_x" value="${base_length/2 + camera_length/2 +0.05 }"/>
+  <xacro:property name="camera_offset_y" value="0.0"/>
+  <xacro:property name="camera_offset_z" value="0.0"/>
+  
+  <!-- Camera orientation offsets (Roll, Pitch, Yaw) -->
+  <xacro:property name="camera_roll" value="0.0"/>
+  <xacro:property name="camera_pitch" value="0.0"/>
+  <xacro:property name="camera_yaw" value="0.0"/>
+
+  <!-- Camera Link -->
+  <link name="camera_link">
+    <!-- Visual representation -->
+    <visual>
+      <geometry>
+        <box size="${camera_length} ${camera_width} ${camera_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <material name="black"/>
+    </visual>
+    
+    <!-- Collision geometry -->
+    <collision>
+      <geometry>
+        <box size="${camera_length} ${camera_width} ${camera_height}"/>
+      </geometry>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </collision>
+    
+    <!-- Inertial properties using box macro -->
+    <xacro:box_inertia m="${camera_mass}" x="${camera_length}" y="${camera_width}" z="${camera_height}"/>
+  </link>
+  
+  <!-- Joint connecting base_link to camera -->
+  <joint name="camera_joint" type="fixed">
+    <parent link="${base_link_name}"/>
+    <child link="camera_link"/>
+    <!-- Uses configurable origin offsets defined at the top of the camera section -->
+    <origin xyz="${camera_offset_x} ${camera_offset_y} ${camera_offset_z}" rpy="${camera_roll} ${camera_pitch} ${camera_yaw}"/>
+  </joint>
+
+</robot>
