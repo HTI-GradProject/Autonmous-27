@@ -98,8 +98,8 @@ class ObstacleMarkerBuilder:
         """Build a marker that deletes every previously published marker."""
         marker = Marker()
         marker.header = header
-        marker.ns = self.CUBE_NAMESPACE
-        marker.id = 0
+        marker.ns = "cleanup"
+        marker.id = 999999
         marker.action = Marker.DELETEALL
         return marker
 

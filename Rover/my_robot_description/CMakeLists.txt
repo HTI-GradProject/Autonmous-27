@@ -32,4 +32,10 @@ install(DIRECTORY
   DESTINATION share/${PROJECT_NAME}
 )
 
+# Install teleop GUI script
+install(PROGRAMS
+  scripts/teleop_gui.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()

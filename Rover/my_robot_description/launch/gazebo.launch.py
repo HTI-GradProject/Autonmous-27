@@ -30,15 +30,19 @@ def launch_setup(context, *args, **kwargs):
     # Retrieve the world launch argument
     world_file = LaunchConfiguration('world').perform(context)
     
-    # Get package share and marsyard data directory
+    # Get package shares
     pkg_share = FindPackageShare('my_robot_description').find('my_robot_description')
-    marsyard_dir = '/home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/MarsYardData'
+    try:
+        from ament_index_python.packages import get_package_share_directory
+        pkg_worlds = get_package_share_directory('worlds')
+    except Exception:
+        pkg_worlds = ''
     
     # Resolve world path
     if os.path.isabs(world_file):
         world_path = world_file
-    elif os.path.exists(os.path.join(marsyard_dir, world_file)):
-        world_path = os.path.join(marsyard_dir, world_file)
+    elif pkg_worlds and os.path.exists(os.path.join(pkg_worlds, 'worlds', world_file)):
+        world_path = os.path.join(pkg_worlds, 'worlds', world_file)
     else:
         world_path = os.path.join(pkg_share, 'worlds', world_file)
         
@@ -58,8 +62,7 @@ def launch_setup(context, *args, **kwargs):
 
     # Set up Gazebo resource paths to find marsyard and rock models
     resource_paths = [
-        marsyard_dir,
-        os.path.join(marsyard_dir, 'models'),
+        pkg_share,
         os.path.join(pkg_share, 'worlds'),
         os.path.join(pkg_share, '..'),  # to resolve package://my_robot_description
         '/home/saif/Desktop/ROAR/rock_generator',
@@ -71,11 +74,17 @@ def launch_setup(context, *args, **kwargs):
         pkg_marsyard = get_package_share_directory('marsyard')
         resource_paths.append(os.path.join(pkg_marsyard, 'models'))
         resource_paths.append(pkg_marsyard)
-        
+    except Exception:
+        pass
+
+    try:
+        from ament_index_python.packages import get_package_share_directory
         pkg_worlds = get_package_share_directory('worlds')
         resource_paths.append(os.path.join(pkg_worlds, 'worlds'))
         resource_paths.append(pkg_worlds)
         resource_paths.append(os.path.dirname(pkg_worlds))
+        resource_paths.append(os.path.join(pkg_worlds, 'models'))
+        resource_paths.append(os.path.join(pkg_worlds, 'rocks'))
     except Exception as e:
         print(f"[gazebo.launch] Share paths resolution: {e}")
     
@@ -133,7 +142,7 @@ def launch_setup(context, *args, **kwargs):
             '-name', 'my_robot',
             '-x', '0.0',
             '-y', '0.0',
-            '-z', '0.5'  # Spawn slightly higher to avoid colliding with terrain features
+            '-z', '1.5'  # Spawn slightly above the ground to land gently without tunneling
         ],
         output='screen'
     )
@@ -149,7 +158,7 @@ def launch_setup(context, *args, **kwargs):
             f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/image@sensor_msgs/msg/Image[ignition.msgs.Image',
             f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/camera_info@sensor_msgs/msg/CameraInfo[ignition.msgs.CameraInfo',
             f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/depth_image@sensor_msgs/msg/Image[ignition.msgs.Image',
-            f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloud2',
+            f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/points@sensor_msgs/msg/PointCloud2[ignition.msgs.PointCloudPacked',
         ],
         remappings=[
             (f'/world/{world_name}/model/my_robot/link/camera_link/sensor/camera/image', '/camera/image_raw'),
@@ -159,7 +168,6 @@ def launch_setup(context, *args, **kwargs):
         ],
         output='screen'
     )
-    
     return [
         gazebo,
         robot_state_publisher_node,

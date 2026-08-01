@@ -278,4 +278,12 @@
     <origin xyz="${camera_offset_x} ${camera_offset_y} ${camera_offset_z}" rpy="${camera_roll} ${camera_pitch} ${camera_yaw}"/>
   </joint>
 
+  <!-- Optical link to map Gazebo's camera frame to ROS 2 frame -->
+  <link name="my_robot/camera_link/camera"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="my_robot/camera_link/camera"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
 </robot>

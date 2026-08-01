@@ -72,7 +72,7 @@ class _PatchworkBackend:
         max_range: float,
         verbose: bool,
     ) -> None:
-        params = pypatchworkpp.Parameter()
+        params = pypatchworkpp.Parameters()
         params.sensor_height = sensor_height
         params.num_zones = num_zones
         params.min_range = min_range

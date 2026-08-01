@@ -65,7 +65,7 @@ ros2 launch worlds launch_map.launch.py world:=marsyard.world
 ## Testing & Verification Guide
 
 For a complete step-by-step tutorial on launching, driving the rover, starting the perception pipeline, and validating inputs/outputs in RViz2, refer to the local guide:
-* **[testing_guide.md](testing_guide.md)**
+* **[testing_guide.md](General_Docu/testing_guide.md)**
 
 ---
 

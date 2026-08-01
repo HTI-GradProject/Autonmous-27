@@ -48,7 +48,7 @@
     Optional soft dependency for the full Patchwork++ ground-removal
     backend (Step 2). If not installed, ground_removal.py automatically
     falls back to a pure-NumPy vectorized concentric slope/height
-    threshold -- no build-time dependency is declared for it here.
+    threshold - no build-time dependency is declared for it here.
         pip3 install pypatchworkpp
   -->
 
