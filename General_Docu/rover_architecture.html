@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ERC Rover Autonomous Navigation System Architecture and Documentation">
+    <title>ERC Rover Autonomous Navigation Architecture</title>
+    <!-- Premium Fonts & Libraries -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true, 
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#1e1b4b',
+                primaryTextColor: '#f8fafc',
+                primaryBorderColor: '#6366f1',
+                lineColor: '#38bdf8',
+                secondaryColor: '#0f172a',
+                tertiaryColor: '#14b8a6'
+            }
+        });
+    </script>
+    <style>
+        :root {
+            --bg-color: #030712;
+            --panel-bg: rgba(17, 24, 39, 0.7);
+            --panel-border: rgba(255, 255, 255, 0.08);
+            --primary: #6366f1; /* Indigo */
+            --primary-glow: rgba(99, 102, 241, 0.15);
+            --accent-teal: #14b8a6; /* Teal */
+            --accent-pink: #ec4899; /* Pink */
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --code-bg: rgba(31, 41, 55, 0.6);
+            --card-radius: 16px;
+            --sidebar-width: 280px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            background-image: radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.1) 0%, transparent 40%),
+                              radial-gradient(circle at 90% 90%, rgba(20, 184, 166, 0.1) 0%, transparent 40%);
+            background-attachment: fixed;
+        }
+
+        /* Sidebar Navigation */
+        aside {
+            width: var(--sidebar-width);
+            background: rgba(17, 24, 39, 0.85);
+            border-right: 1px solid var(--panel-border);
+            height: 100vh;
+            position: fixed;
+            left: 0; top: 0;
+            display: flex; flex-direction: column;
+            padding: 30px 24px; z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .sidebar-header h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem; font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 40%, #818cf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: flex; align-items: center; gap: 10px; margin-bottom: 30px;
+        }
+
+        .sidebar-header h2 i { color: var(--primary); -webkit-text-fill-color: initial; }
+
+        .sidebar-menu { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .menu-item a {
+            display: flex; align-items: center; gap: 12px;
+            color: var(--text-muted); text-decoration: none;
+            padding: 12px 16px; border-radius: 8px; font-size: 0.9rem; font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .menu-item a:hover {
+            color: white;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .menu-item.active a { 
+            color: white; 
+            background: var(--primary-glow); 
+            border-left: 3px solid var(--primary); 
+            border-top-left-radius: 0; 
+            border-bottom-left-radius: 0; 
+        }
+
+        /* Main Content */
+        main {
+            margin-left: var(--sidebar-width); 
+            flex-grow: 1; 
+            padding: 50px 60px; 
+            max-width: 1200px;
+            width: calc(100% - var(--sidebar-width));
+        }
+
+        header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif; 
+            font-size: 2.6rem; 
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #ffffff 50%, #818cf8 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 30px;
+        }
+
+        /* Glass Cards */
+        .glass-panel {
+            background: var(--panel-bg); 
+            backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border); 
+            border-radius: var(--card-radius);
+            padding: 40px; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); 
+            margin-bottom: 40px;
+        }
+
+        .glass-panel h2 {
+            font-family: 'Outfit', sans-serif; 
+            font-size: 1.7rem; 
+            color: var(--primary); 
+            margin-bottom: 20px; 
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2); 
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .glass-panel h3 { 
+            font-family: 'Outfit', sans-serif; 
+            font-size: 1.3rem; 
+            color: var(--accent-teal); 
+            margin: 25px 0 15px 0; 
+        }
+
+        .glass-panel p, .glass-panel li { 
+            color: #d1d5db; 
+            font-size: 1rem; 
+            line-height: 1.7; 
+            margin-bottom: 14px; 
+        }
+
+        .glass-panel ul { 
+            margin-left: 24px; 
+            margin-bottom: 18px; 
+        }
+
+        .glass-panel li strong {
+            color: white;
+        }
+
+        /* Block Info Cards */
+        .block-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .block-card {
+            background: rgba(15, 23, 42, 0.45); 
+            border: 1px solid var(--panel-border); 
+            border-radius: 12px; 
+            padding: 24px;
+            transition: transform 0.2s ease;
+        }
+        .block-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+
+        .block-card h4 { 
+            color: var(--accent-teal); 
+            font-size: 1.15rem; 
+            margin-bottom: 12px; 
+            font-family: 'Outfit', sans-serif; 
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .block-card.alt h4 {
+            color: var(--accent-pink);
+        }
+
+        /* Alerts and Callouts */
+        .callout { 
+            background: rgba(20, 184, 166, 0.08); 
+            border-left: 4px solid var(--accent-teal); 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 0 8px 8px 0; 
+        }
+
+        .callout.warning {
+            background: rgba(236, 72, 153, 0.08);
+            border-left-color: var(--accent-pink);
+        }
+
+        .callout h4 {
+            font-family: 'Outfit', sans-serif;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            background: rgba(10, 15, 30, 0.4);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--panel-border);
+        }
+
+        th, td {
+            padding: 14px 18px;
+            text-align: left;
+            border-bottom: 1px solid var(--panel-border);
+            font-size: 0.95rem;
+        }
+
+        th {
+            background-color: rgba(255, 255, 255, 0.03);
+            color: var(--primary);
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: rgba(255, 255, 255, 0.01);
+        }
+
+        .inline-code { 
+            background: rgba(0, 0, 0, 0.3); 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            color: #a5b4fc; 
+            font-family: 'Fira Code', monospace; 
+            font-size: 0.9rem;
+        }
+
+        /* Diagram Box */
+        .diagram-container {
+            background: rgba(10, 15, 30, 0.5);
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid var(--panel-border);
+            margin: 30px 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .block-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            aside { display: none; }
+            main {
+                margin-left: 0;
+                width: 100%;
+                padding: 30px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="sidebar-header">
+            <h2><i class="fa-solid fa-space-shuttle"></i> ERC Rover Tech</h2>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="menu-item active"><a href="#section-introduction"><i class="fa-solid fa-info-circle"></i> ERC Context</a></li>
+            <li class="menu-item"><a href="#section-pipeline"><i class="fa-solid fa-diagram-project"></i> System Pipeline</a></li>
+            <li class="menu-item"><a href="#section-blocks"><i class="fa-solid fa-cubes"></i> Module Details</a></li>
+            <li class="menu-item"><a href="#section-interfaces"><i class="fa-solid fa-exchange-alt"></i> Sensor & TF Setup</a></li>
+        </ul>
+    </aside>
+
+    <main>
+        <header>
+            <h1 id="main-title">ERC Rover Autonomous Navigation System</h1>
+            <p class="subtitle">Complete Autonomous Architecture: Perception, SLAM, and Path Planning</p>
+        </header>
+
+        <!-- SECTION 1: ERC Context -->
+        <section id="section-introduction" class="glass-panel">
+            <h2><i class="fa-solid fa-rocket"></i> European Rover Challenge (ERC) Context</h2>
+            <p>
+                The <strong>European Rover Challenge (ERC)</strong> is an international space-robotics competition simulating Mars exploration. The <strong>Navigation (Traverse) Task</strong> requires the rover to autonomously traverse a complex Mars Yard, seeking pre-defined coordinate waypoints while avoiding geological hazards.
+            </p>
+            <div class="callout">
+                <h4><i class="fa-solid fa-award"></i> The Importance of Full Autonomy</h4>
+                <p>
+                    Scoring is heavily weighted by the level of autonomy. Full autonomy (zero operator feedback and zero video stream) awards the maximum possible points. Teleoperation or live intervention incurs severe point penalties. Thus, the onboard software stack must be self-reliant, fail-safe, and capable of real-time hazard mitigation.
+                </p>
+            </div>
+            <h3>Critical Environmental Constraints</h3>
+            <ul>
+                <li><strong>No GPS:</strong> Traditional GNSS is unavailable or heavily penalized. The rover must rely on relative localization (Wheels + IMU + Cameras).</li>
+                <li><strong>ArUco Navigation Aids:</strong> The competition environment features artificial visual markers (ArUco tags) placed at known surveyed coordinates. These provide absolute correction to combat relative sensor drift.</li>
+                <li><strong>Dynamic, Rough Terrain:</strong> Loose sand, steep slopes, craters, and boulders require kinematic awareness to prevent slippage, rollover, and collision.</li>
+            </ul>
+        </section>
+
+        <!-- SECTION 2: System Pipeline Flowchart -->
+        <section id="section-pipeline" class="glass-panel">
+            <h2><i class="fa-solid fa-diagram-project"></i> General System Pipeline</h2>
+            <p>
+                The architecture is designed to handle raw sensory data, filter it to prevent CPU overload, extract geometry, perform state estimation, map obstacles, and plan safe control outputs.
+            </p>
+
+            <div class="diagram-container">
+                <div class="mermaid">
+flowchart TD
+    %% Define Styles
+    classDef sensors fill:#1e1b4b,stroke:#4f46e5,stroke-width:2px,color:#f8fafc;
+    classDef perception fill:#064e3b,stroke:#059669,stroke-width:2px,color:#f8fafc;
+    classDef slam fill:#701a75,stroke:#d946ef,stroke-width:2px,color:#f8fafc;
+    classDef navigation fill:#822727,stroke:#ef4444,stroke-width:2px,color:#f8fafc;
+    classDef output fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+
+    %% 1. Sensors Block
+    subgraph Sensors [Onboard Sensors]
+        S_Cam[RealSense Camera<br/>RGB-D]:::sensors
+        S_IMU[BNO055 IMU<br/>Orientation/Accel]:::sensors
+        S_Enc[Wheel Encoders<br/>Tick Rates]:::sensors
+    end
+
+    %% 2. Perception Block
+    subgraph Perception [Perception Module]
+        P_Filter[Depth Filter & Downsampling<br/>Voxel Grid]:::perception
+        P_Ransac[RANSAC Ground Filter<br/>Slope Detection]:::perception
+        P_Dbscan[DBSCAN Clustering<br/>Obstacle Detection]:::perception
+        P_Memory[Persistent Memory Node<br/>EMA Bounding Boxes]:::perception
+        P_Aruco[ArUco Detector<br/>OpenCV solvePnP]:::perception
+    end
+
+    %% 3. SLAM & Fusion Block
+    subgraph SLAM [SLAM & Odometry Fusion]
+        F_Fuzzy[Fuzzy Inference System<br/>Calculates Q & R Matrices]:::slam
+        F_EKF[Iterated EKF Engine<br/>robot_localization]:::slam
+        F_Map[Slam Toolbox / RTAB-Map<br/>Occupancy Grid Map]:::slam
+    end
+
+    %% 4. Navigation Block
+    subgraph Navigation [Path Planning & Control]
+        N_Global[Smac Hybrid A* Planner<br/>Kinematic Global Path]:::navigation
+        N_Local[MPPI Controller<br/>Trajectory Simulation]:::navigation
+    end
+
+    %% Sensor Streams to Perception & SLAM
+    S_Cam -->|RGB + Depth Images| P_Filter
+    S_Cam -->|RGB Frame| P_Aruco
+    S_IMU -->|Raw Inertial & Yaw| F_EKF
+    S_Enc -->|Tick Velocities| F_EKF
+    S_IMU -.->|Slip Comparison| F_Fuzzy
+    S_Enc -.->|Slip Comparison| F_Fuzzy
+
+    %% Perception Connections
+    P_Filter -->|Downsampled Points| P_Ransac
+    P_Ransac -->|Obstacle Points| P_Dbscan
+    P_Dbscan -->|Temporary Bounding Boxes| P_Memory
+    P_Aruco -->|Visual Odometry/Pose| F_EKF
+    P_Aruco -->|Absolute Marker Poses| F_EKF
+
+    %% SLAM Inputs and Outputs
+    P_Memory -->|/perception/obstacles_only| F_Map
+    F_Fuzzy -->|Adaptive Process/Measurement Noise| F_EKF
+    F_EKF -->|/odometry/filtered| F_Map
+    F_EKF -->|odom -> base_link TF| N_Local
+    F_Map -->|/map & map -> odom TF| N_Global
+
+    %% Navigation Inputs and Outputs
+    N_Global -->|/plan| N_Local
+    F_EKF -->|/odometry/filtered| N_Global
+    F_EKF -->|/odometry/filtered| N_Local
+
+    %% Command Output
+    N_Local -->|/cmd_vel| RoverActuation[Rover Motors & Actuators]:::output
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: Module Details -->
+        <section id="section-blocks" class="glass-panel">
+            <h2><i class="fa-solid fa-cubes"></i> Onboard Software Modules</h2>
+            
+            <div class="block-grid">
+                <!-- Perception Card -->
+                <div class="block-card">
+                    <h4><i class="fa-solid fa-eye"></i> 1. Perception Module</h4>
+                    <p>
+                        Responsible for processing raw visual feeds and building a geometric model of local obstacles.
+                    </p>
+                    <ul>
+                        <li><strong>Input:</strong> Aligned Depth, RGB Image, Camera Calibration Info.</li>
+                        <li><strong>Ground Filtering:</strong> Uses downsampled point clouds. RANSAC finds the ground plane (slopes/dirt) and filters it out.</li>
+                        <li><strong>Clustering (DBSCAN):</strong> Groups remaining 3D points into distinct 3D boxes (obstacles).</li>
+                        <li><strong>Memory Node:</strong> Prevents the rover from forgetting obstacles when it turns away. Uses Exponential Moving Average (EMA) to keep broadcasting persistent obstacle markers to the planner.</li>
+                        <li><strong>ArUco Node:</strong> Performs OpenCV Perspective-n-Point (PnP) translation of detected tags to find absolute 6-DOF coordinates.</li>
+                        <li><strong>Output:</strong> `vision_msgs/Detection3DArray` (Obstacles), `geometry_msgs/PoseStamped` (Tag Pos).</li>
+                    </ul>
+                </div>
+
+                <!-- SLAM Card -->
+                <div class="block-card alt">
+                    <h4><i class="fa-solid fa-map-location-dot"></i> 2. SLAM & Fusion Module</h4>
+                    <p>
+                        Computes the rover's position and coordinates the mapping database.
+                    </p>
+                    <ul>
+                        <li><strong>Input:</strong> Wheel ticks, IMU Quaternions, visual odometry, and detected ArUco poses.</li>
+                        <li><strong>Fuzzy Inference:</strong> Compares wheel velocities against IMU turn rates to detect slips. Adjusts EKF matrix bounds dynamically (trust wheels less when slipping, trust camera less when featureless).</li>
+                        <li><strong>State Fusion (IESKF):</strong> Merges local sensors into `/odometry/filtered` (smooth state estimation). Uses ArUco tag locations to perform absolute corrections (canceling drift).</li>
+                        <li><strong>Mapping:</strong> Feeds localized odometry and obstacle boxes to `slam_toolbox` to generate a 2D Occupancy Grid.</li>
+                        <li><strong>Output:</strong> `/odometry/filtered` and `/map`.</li>
+                    </ul>
+                </div>
+
+                <!-- Path Planning Card -->
+                <div class="block-card alt">
+                    <h4><i class="fa-solid fa-route"></i> 3. Global Planner</h4>
+                    <p>
+                        Calculates a kinematically feasible route to target waypoints.
+                    </p>
+                    <ul>
+                        <li><strong>Input:</strong> `/map` grid, `/odometry/filtered`, and `/goal_pose`.</li>
+                        <li><strong>Algorithm:</strong> Smac Hybrid A* (considers position and orientation: x, y, &theta;).</li>
+                        <li><strong>Kinematic Awareness:</strong> Plans trajectories modeling Reeds-Shepp kinematics to respect the rover's physical turning limitations. Avoids making steering demands the chassis cannot fulfill.</li>
+                        <li><strong>Output:</strong> `/plan` (Array of waypoint paths).</li>
+                    </ul>
+                </div>
+
+                <!-- Local Planner Card -->
+                <div class="block-card">
+                    <h4><i class="fa-solid fa-gamepad"></i> 4. Local Planner (Controller)</h4>
+                    <p>
+                        Executes active obstacle avoidance and tracks the global path in real-time.
+                    </p>
+                    <ul>
+                        <li><strong>Input:</strong> `/plan`, local costmap, `/odometry/filtered`.</li>
+                        <li><strong>Algorithm:</strong> Model Predictive Path Integral (MPPI).</li>
+                        <li><strong>Trajectory Sampling:</strong> Simulates thousands of candidate trajectories on the Jetson GPU, scoring them based on collision risk, deviation from the path, and terrain cost.</li>
+                        <li><strong>Output:</strong> `/cmd_vel` (Velocity and steering signals sent directly to the motor driver).</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: System Interfaces & TF Tree -->
+        <section id="section-interfaces" class="glass-panel">
+            <h2><i class="fa-solid fa-sliders"></i> Sensor Details & Coordinate Transforms</h2>
+            <p>
+                To prevent localization conflicts, the relationship between coordinate frames must be strictly structured. The table below outlines the core sensor properties, followed by the coordinate transform responsibilities.
+            </p>
+
+            <h3>Onboard Sensors and I/O Properties</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Sensor Type</th>
+                        <th>Connection Type</th>
+                        <th>Output Frequency</th>
+                        <th>Primary Task</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Intel RealSense D4xx</strong></td>
+                        <td>USB 3.0</td>
+                        <td>15 - 30 Hz</td>
+                        <td>3D point clouds, visual odometry, ArUco tag identification.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Bosch BNO055 IMU</strong></td>
+                        <td>I2C / Serial</td>
+                        <td>100 Hz</td>
+                        <td>High-speed orientation (Quaternions) and rotational velocities.</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Wheel Encoders (4x)</strong></td>
+                        <td>GPIO / CAN Bus</td>
+                        <td>50 - 100 Hz</td>
+                        <td>Relative linear velocities (wheel tick tracking).</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Transform (TF) Tree Distribution</h3>
+            <p>
+                Coordinate frame propagation is distributed as follows to ensure seamless path planning:
+            </p>
+            <ul>
+                <li><strong>`base_link` &rarr; `camera_link` / `imu_link`:</strong> Fixed static transforms. Calibrated once and broadcasted by `robot_state_publisher`.</li>
+                <li><strong>`odom` &rarr; `base_link`:</strong> High-frequency relative transform (100 Hz) broadcasted by the **EKF Node**. Keeps local movements continuous and fast.</li>
+                <li><strong>`map` &rarr; `odom`:</strong> Lower-frequency absolute correction transform (1 - 5 Hz) broadcasted by the **Mapping Node** (`slam_toolbox` or `rtabmap`). Compares camera data against past loops or ArUco markers to shift the coordinate grid and cancel drift.</li>
+            </ul>
+        </section>
+    </main>
+
+</body>
+</html>

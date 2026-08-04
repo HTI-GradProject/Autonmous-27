@@ -137,7 +137,7 @@
                 Driver -->|RGB Image| Marker
                 Marker -->|3D Marker Poses| State[Mission State Machine]
                 
-                subgraph Branch 3: SLAM
+                subgraph Branch 3: SLAM (Delegated to SLAM Module)
                     SLAM[Visual SLAM Node<br>RTAB-Map]
                 end
                 
@@ -181,15 +181,12 @@
         </div>
 
         <div class="branch-card">
-            <h3>Branch 3: Visual SLAM (RTAB-Map Deep Dive)</h3>
-            <p>This branch tracks the rover's movement and builds the infinite 3D map. RTAB-Map runs an incredible continuous loop:</p>
+            <h3>Branch 3: Visual SLAM (Delegated to SLAM Module)</h3>
+            <p>This branch has been delegated to the SLAM Module (Bavly SLAM). It is responsible for visual odometry, mapping, and loop closure. The Perception Module feeds raw camera data (RGB and Aligned Depth) to the SLAM module, which handles the mapping loop:</p>
             <ol>
-                <li><strong>Time Synchronization:</strong> Waits to receive the RGB Image, Aligned Depth Image, Camera Intrinsics, and BNO055 IMU Quaternion at the exact same millisecond.</li>
-                <li><strong>Feature Extraction:</strong> Scans the RGB image to find hundreds of highly distinct visual landmarks (e.g., sharp corners of rocks).</li>
-                <li><strong>Depth Assignment:</strong> Cross-references those landmarks with the Aligned Depth image to find their exact X, Y, Z physical distance.</li>
-                <li><strong>Visual Odometry:</strong> As the rover moves, it finds those exact same features in the next frame. By calculating how far those 3D features shifted across the screen, it mathematically proves exactly how far the rover drove.</li>
-                <li><strong>Graph Building:</strong> Saves this movement into a long mathematical chain.</li>
-                <li><strong>Loop Closure (The Magic Trick):</strong> Constantly compares current features against a database of past features. If it recognizes a rock it saw 5 minutes ago, it calculates the drift error and instantly snaps the entire map back into perfect alignment.</li>
+                <li><strong>Time Synchronization:</strong> Synchronizes RGB, Depth, Intrinsics, and IMU data.</li>
+                <li><strong>Feature Extraction & Depth Assignment:</strong> Detects keypoints and locates them in 3D using depth.</li>
+                <li><strong>Visual Odometry & Loop Closure:</strong> Estimates rover movement and corrects drift when revisiting known visual landmarks.</li>
             </ol>
         </div>
 
@@ -218,9 +215,9 @@
                 </tr>
                 <tr>
                     <td><strong>3. The Map & Location TF</strong><br><code>/tf</code> + <code>OccupancyGrid</code></td>
-                    <td>Branch 3<br><em>(RTAB-Map)</em></td>
+                    <td>Branch 3<br><em>(RTAB-Map - Delegated)</em></td>
                     <td><strong>Nav Stack & EKF</strong></td>
-                    <td>Outputs the physical 3D map, and continuously broadcasts the rover's exact X, Y location on that map via the transform.</td>
+                    <td>Outputs the physical 3D map, and continuously broadcasts the rover's exact X, Y location on that map via the transform (handled in SLAM package).</td>
                 </tr>
             </tbody>
         </table>
@@ -245,8 +242,8 @@
         </div>
 
         <div class="branch-card">
-            <h3>Building Branch 3: Visual SLAM</h3>
-            <p><strong>Launch Files (XML/Python):</strong> You do <em>not</em> write C++ code for SLAM. The math is incredibly complex and standard packages are already perfected. Building this branch simply requires writing standard ROS 2 Launch files to spin up the <code>rtabmap_ros</code> package, perfectly tuning its YAML parameters (like feature extraction type and memory limits) to match the Jetson's capabilities.</p>
+            <h3>Building Branch 3: Visual SLAM (Delegated to SLAM Module)</h3>
+            <p><strong>SLAM Package Implementation:</strong> Development of this branch occurs inside the SLAM module workspace. It configures the <code>rtabmap_ros</code> node launch files and tunes parameters to build and optimize the mapping loop. Refer to the SLAM Module documentation for details.</p>
         </div>
 
     </div>

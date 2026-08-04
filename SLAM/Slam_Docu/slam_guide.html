@@ -163,72 +163,74 @@
 
             <div class="mermaid" style="text-align: center; margin: 30px 0; background: rgba(15, 23, 42, 0.6); padding: 20px; border-radius: 12px; border: 1px solid var(--panel-border);">
 graph TD
-    %% Define Styles
-    classDef hardware fill:#1e293b,stroke:#cbd5e1,stroke-width:2px,color:#f8fafc;
-    classDef perception fill:#1e293b,stroke:#14b8a6,stroke-width:2px,color:#f8fafc;
-    classDef fuzzy fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#f8fafc;
-    classDef ekf fill:#0f172a,stroke:#6366f1,stroke-width:3px,color:#f8fafc;
-    classDef mapping fill:#0f172a,stroke:#f59e0b,stroke-width:3px,color:#f8fafc;
-    classDef output fill:#064e3b,stroke:#34d399,stroke-width:3px,color:#f8fafc;
+    classDef hardware fill:#0f172a,stroke:#94a3b8,stroke-width:2px,color:#f8fafc;
+    classDef inputTopic fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef fuzzy fill:#9a3412,stroke:#fb923c,stroke-width:2px,color:#f8fafc;
+    classDef ekf fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px,color:#f8fafc;
+    classDef map fill:#5b21b6,stroke:#a78bfa,stroke-width:3px,color:#f8fafc;
+    classDef outputTopic fill:#064e3b,stroke:#34d399,stroke-width:3px,color:#f8fafc;
 
-    %% Hardware Inputs
-    subgraph H [Hardware Inputs]
-        W[Wheel Encoders]:::hardware
-        I[IMU]:::hardware
+    subgraph S1 [1. Hardware Inputs]
+        HW_W2[Wheel Encoders]:::hardware
+        HW_I2[BNO IMU]:::hardware
+        HW_C2[Camera RGB]:::hardware
     end
 
-    %% Perception Inputs
-    subgraph P [Perception Inputs]
-        O[Branch 1: Clean Obstacles]:::perception
-        Z[Branch 3: ZED ORB Tracking]:::perception
-        A[Branch 2: ArUco Detections]:::perception
+    subgraph S2 [2. Input Topics]
+        T_W2([/wheel/ticks]):::inputTopic
+        T_I2([/imu/data]):::inputTopic
+        T_ORB([ORB Feature Tracking]):::inputTopic
+        T_ARUCO([ArUco Detections]):::inputTopic
+        T_ROCKS([/perception/obstacles_only]):::inputTopic
     end
 
-    %% Fuzzy Logic
-    subgraph F [Fuzzy Inference System]
-        FQ[FIS Q-Matrix Evaluator]:::fuzzy
-        FR[FIS R-Matrix Evaluator]:::fuzzy
+    HW_W2 --> T_W2
+    HW_I2 --> T_I2
+    HW_C2 --> T_ORB
+    HW_C2 --> T_ARUCO
+    
+    subgraph S3 [3. Fuzzy Inference System]
+        FIS_Q[Q-Matrix Evaluator<br/>Outputs: Process Noise]:::fuzzy
+        FIS_R[R-Matrix Evaluator<br/>Outputs: Observation Noise]:::fuzzy
     end
 
-    %% IESKF
-    subgraph E [Odometry Fusion IESKF]
-        WIO[Wheel-Inertial Predict]:::ekf
-        WVO[Wheel-Visual Observe]:::ekf
-        EKF{IESKF Core Filter}:::ekf
-        RST[ArUco Error Reset]:::ekf
+    T_W2 --> |Slip| FIS_Q
+    T_I2 --> |Rotation| FIS_Q
+    T_ORB --> |Reprojection Error| FIS_R
+
+    subgraph S4 [4. IESKF Fusion Engine]
+        PREDICT[Wheel-Inertial Predict]:::ekf
+        OBSERVE[Visual Observe]:::ekf
+        RESET[ArUco Drift Reset]:::ekf
+        IESKF{Iterated Extended<br/>Kalman Filter Core}:::ekf
     end
 
-    %% Mapping
-    subgraph M [Mapping Module]
-        MAP[Occupancy Grid Builder]:::mapping
+    T_W2 --> PREDICT
+    T_I2 --> PREDICT
+    T_ORB --> OBSERVE
+    T_ARUCO --> RESET
+
+    FIS_Q -.-> |Controls Predict Trust| PREDICT
+    FIS_R -.-> |Controls Observe Trust| OBSERVE
+    
+    PREDICT --> IESKF
+    OBSERVE --> IESKF
+    RESET --> IESKF
+
+    subgraph S5 [5. Mapping Engine]
+        ST{slam_toolbox<br/>Occupancy Grid Builder}:::map
     end
 
-    %% Connections Hardware to EKF
-    W --&gt; |Linear Velocity| WIO
-    I --&gt; |Orientation| WIO
-    WIO --&gt; |State Prediction| EKF
+    IESKF ==> |Fused Odometry| ST
+    T_ROCKS ==> |Clean Obstacles| ST
 
-    %% Connections Perception to EKF
-    Z --&gt; |Visual Odometry| WVO
-    WVO --&gt; |Measurement Update| EKF
+    subgraph S6 [6. Final Navigation Outputs]
+        OUT_ODOM2([Topic: /odometry/filtered<br/>Perfected rover pose]):::outputTopic
+        OUT_MAP([Topic: /map<br/>Global 2D grid for planner]):::outputTopic
+    end
 
-    A --&gt; |Global Anchor Pose| RST
-    RST -.-> |Hard Zero Drift| EKF
-
-    %% Connections to Fuzzy Logic
-    W --&gt; |Slip Check| FQ
-    I --&gt; |Slip Check| FQ
-    FQ -.-> |Controls Process Noise| WIO
-
-    Z --&gt; |Reprojection Error| FR
-    FR -.-> |Controls Observation Noise| WVO
-
-    %% Outputs
-    EKF ==&gt; |/odometry/filtered| OUT_ODOM((Perfected Pose Output)):::output
-    EKF --&gt; |/odometry/filtered| MAP
-
-    O --&gt; |/perception/obstacles_only| MAP
-    MAP ==&gt; |/map| OUT_MAP((Global 2D Map Output)):::output
+    IESKF ==> OUT_ODOM2
+    ST ==> OUT_MAP
             </div>
 
             <div class="route-card">
@@ -360,6 +362,16 @@ graph TD
                 <ul>
                     <li><strong>How it works:</strong> You configure it via YAML. You tell it to listen to your `/odometry/filtered` topic and your Branch 1 point cloud. It will automatically stitch the rocks onto a 2D Occupancy Grid and publish the final `/map` topic.</li>
                     <li><strong>Recommendation:</strong> Use <code>slam_toolbox</code>. Writing a custom mapping node is extremely complex and unnecessary, as `slam_toolbox` is already highly optimized in C++ for lifelong mapping and loop closure.</li>
+                </ul>
+            </div>
+
+            <div class="ready-made" style="background: rgba(99, 102, 241, 0.1); border-left-color: var(--primary);">
+                <h4 style="color: #818cf8; margin-bottom: 8px;"><i class="fa-solid fa-link"></i> Connecting /odom, /map, and the TF Tree</h4>
+                <p>It is important to remember that `/odom` and `/map` cannot work in isolation. The EKF outputs local robot motion on `/odometry/filtered` (which slowly drifts), and `slam_toolbox` outputs the obstacle locations on `/map`. To connect them:</p>
+                <ul>
+                    <li>The EKF publishes the <strong><code>odom &rarr; base_link</code></strong> transform.</li>
+                    <li>`slam_toolbox` calculates and publishes the <strong><code>map &rarr; odom</code></strong> transform.</li>
+                    <li>This transform bridge allows the navigation stack to calculate the rover's exact, drift-corrected coordinate pose on the map (<code>map &rarr; base_link</code>), making global planning possible.</li>
                 </ul>
             </div>
         </div>
