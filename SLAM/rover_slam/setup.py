@@ -25,7 +25,6 @@ setup(
         'console_scripts': [
             'encoder_ticks_to_odom = rover_slam.encoder_ticks_to_odom:main',
             'heuristic_slip_checker = rover_slam.heuristic_slip_checker:main',
-            'aruco_detector_node = rover_slam.aruco_detector_node:main',
             'costmap_test_stub = rover_slam.costmap_test_stub:main',
         ],
     },

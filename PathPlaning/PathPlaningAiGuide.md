@@ -43,57 +43,103 @@ PathPlaning/
 
 ---
 
-## 3. Parallel Implementation To-Do List (For 2 Developers)
+## 3. Granular Implementation To-Do List (For 2 Developers)
 
-Because two developers (or AI instances) will be working on this simultaneously, the tasks are split into two parallel tracks. **Track A** focuses on core algorithms and launching, while **Track B** focuses on costmap integration and visualization.
+### 🧑‍💻 Person A (Track A - Core Planners & Routing)
 
-### Shared Phase: Package Initialization
-- [ ] **Task 0.1:** Create `package.xml` in `erc_path_planner/` with dependencies: `nav2_bringup`, `nav2_smac_planner`, `nav2_mppi_controller`, `nav2_costmap_2d`, `nav2_bt_navigator`, and `terrain_geometry_msgs`.
-- [ ] **Task 0.2:** Update `CMakeLists.txt` to install the `config`, `launch`, `rviz`, and `behavior_trees` directories, and compile any C++ nodes.
+**Foundation & Package Setup:**
+- [ ] **Task A-1.1:** Create the `erc_path_planner` package structure (directories: `config`, `launch`, `rviz`, `behavior_trees`, `src`).
+- [ ] **Task A-1.2:** Write `package.xml` including all Nav2 dependencies (`nav2_bringup`, `nav2_smac_planner`, `nav2_mppi_controller`, `nav2_costmap_2d`, `nav2_bt_navigator`).
+- [ ] **Task A-2.1:** Write `CMakeLists.txt` to install `config`, `launch`, `rviz`, and `behavior_trees` directories.
+- [ ] **Check A-2.2 (Validation):** Run `colcon build --packages-select erc_path_planner`. Ensure 0 errors.
 
-#### 🔍 Validation Point 0 (Shared Checkpoint):
-*   **Action:** Run `colcon build --packages-select erc_path_planner` from the workspace root.
-*   **Success Criteria:** The build succeeds with no dependency errors, proving the package is correctly registered.
+**Planners Configuration:**
+- [ ] **Task A-3.1:** Create `config/nav2_params.yaml`.
+- [ ] **Task A-3.2:** Configure `planner_server` inside `nav2_params.yaml` to use `SmacPlannerHybrid`.
+- [ ] **Task A-3.3:** Set Smac parameters (`motion_model_for_search: "REEDS_SHEPP"`, `minimum_turning_radius: 0.8`, `allow_unknown: true`).
+- [ ] **Task A-4.1:** Configure `controller_server` to use `MPPIController`.
+- [ ] **Task A-4.2:** Set MPPI parameters (`batch_size: 2000`, `time_steps: 56`, `model_dt: 0.05`, limits, and critics).
+- [ ] **Check A-4.3 (Validation):** Run `yamllint config/nav2_params.yaml` to ensure no syntax errors.
 
----
-
-### Track A: Core Planners & Execution (Developer 1)
-- [ ] **Task A.1 (Smac):** In `config/nav2_params.yaml`, configure the `planner_server` to load `nav2_smac_planner/SmacPlannerHybrid`. Set `motion_model_for_search: "REEDS_SHEPP"`, `minimum_turning_radius: 0.8`, and enable `allow_unknown: true`.
-- [ ] **Task A.2 (MPPI):** Configure the `controller_server` to load `nav2_mppi_controller::MPPIController`. Set `batch_size: 2000`, `time_steps: 56`, `model_dt: 0.05`, and define velocity limits (`vx_max`, `vx_min`, `wz_max`). Configure critics (`GoalCritic`, `PathAlignCritic`, `ObstacleCritic`).
-- [ ] **Task A.3 (Behavior Tree):** Configure the `bt_navigator` to use a standard XML tree, or create a custom `navigate_to_pose_w_replanning_and_recovery.xml` in the `behavior_trees/` folder.
-- [ ] **Task A.4 (Launch):** Create `launch/path_planning.launch.py`. Include the standard `nav2_bringup` launcher and pass the `nav2_params.yaml` absolute path.
-
-#### 🔍 Validation Point 1 (Track A Checkpoint):
-*   **Action:** Run `ros2 run nav2_util lifecycle_bringup` and lint the YAML file. Then run `ros2 launch erc_path_planner path_planning.launch.py`.
-*   **Success Criteria:** `planner_server` and `controller_server` transition to the `active` state in the terminal without crashing due to YAML misconfigurations.
-
----
-
-### Track B: Costmaps, Perception & Vision (Developer 2)
-- [ ] **Task B.1 (Static Map):** In `config/nav2_params.yaml`, configure `global_costmap` and `local_costmap` parameters to subscribe to the SLAM `/map` topic.
-- [ ] **Task B.2 (Obstacles & Inflation):** Add an `obstacle_layer` to the `local_costmap`. Add an `inflation_layer` to both costmaps with a tuned `cost_scaling_factor` and `inflation_radius` corresponding to the rover's physical footprint.
-- [ ] **Task B.3 (Bridge Node):** Write `src/costmap_bridge_node.cpp` to subscribe to the perception module's `terrain_geometry_msgs/ObstacleFeatureArray` and publish a standard `sensor_msgs/PointCloud2` for the `obstacle_layer` observation buffer.
-- [ ] **Task B.4 (RViz2):** Create `launch/rviz.launch.py` to boot RViz2. Save a configuration to `rviz/nav2_default_view.rviz` that visually displays the Map, Global Costmap, Local Costmap, Global Plan, and MPPI Trajectories.
-
-#### 🔍 Validation Point 2 (Track B Checkpoint):
-*   **Action:** Build the bridge node. Run a test bag file containing perception data, launch the bridge node, and open RViz2.
-*   **Success Criteria:** Dynamic obstacles appear as inflated red/blue lethal zones on the Costmap layer inside RViz2.
+**Bringup & Launch:**
+- [ ] **Task A-5.1:** Setup `bt_navigator` parameters in YAML to use standard navigation tree.
+- [ ] **Task A-5.2:** Create `launch/path_planning.launch.py`.
+- [ ] **Task A-6.1:** Include `nav2_bringup` in the launch file and pass the custom `nav2_params.yaml`.
+- [ ] **Check A-6.2 (Validation):** Run `ros2 run nav2_util lifecycle_bringup` and `ros2 launch erc_path_planner path_planning.launch.py`. Verify active state.
 
 ---
 
-### Phase 4: Final System Integration
-- [ ] **Task 4.1:** Both developers merge their work. Run the full path planning launch file alongside RViz2.
-- [ ] **Task 4.2:** Publish a dummy 2D Pose Estimate (`/initialpose`) and a Nav2 Goal (`/goal_pose`) via RViz2.
+### 🧑‍💻 Person B (Track B - Costmaps, Vision & Perception)
 
-#### 🔍 Final System Validation Point:
-*   **Action:** Send a `/goal_pose` command in RViz2 while simulated or recorded obstacle data is playing.
-*   **Success Criteria:** 
-    1. A continuous global path (`/plan`) is drawn from the rover to the goal avoiding static walls.
-    2. MPPI generates a valid velocity command (`/cmd_vel`) to follow the path.
-    3. MPPI successfully deviates from the path locally if a dynamic rock appears in the Costmap.
+**Costmap Foundation:**
+- [ ] **Task B-1.1:** Configure `global_costmap` in `nav2_params.yaml` to subscribe to `/map`.
+- [ ] **Task B-1.2:** Configure `local_costmap` to use a rolling window.
+- [ ] **Task B-2.1:** Add `obstacle_layer` to the `local_costmap`.
+- [ ] **Task B-2.2:** Add `inflation_layer` to both costmaps with rover-specific footprint/radius.
+
+**Perception Bridge Node:**
+- [ ] **Task B-3.1:** Write the ROS 2 C++ boilerplate for `src/costmap_bridge_node.cpp`.
+- [ ] **Task B-3.2:** Add subscriber to `terrain_geometry_msgs/ObstacleFeatureArray`.
+- [ ] **Task B-4.1:** Add publisher for standard `sensor_msgs/PointCloud2`.
+- [ ] **Task B-4.2:** Implement the custom conversion logic inside the node's callback.
+- [ ] **Task B-5.1:** Update `CMakeLists.txt` to compile `costmap_bridge_node.cpp`.
+- [ ] **Check B-5.2 (Validation):** Build `costmap_bridge_node`.
+- [ ] **Check B-5.3 (Validation):** Publish dummy `ObstacleFeatureArray` via CLI, verify `PointCloud2` output.
+
+**Visualization:**
+- [ ] **Task B-6.1:** Create `launch/rviz.launch.py`.
+- [ ] **Task B-6.2:** Configure RViz2 displays for Map, Costmaps, Plan, and Trajectories, and save to `rviz/nav2_default_view.rviz`.
+- [ ] **Check B-7.1 (Validation):** Launch `rviz.launch.py`, publish dummy `/map`, verify RViz loads properly.
+
+---
+
+### 🤝 Phase 4: Final Integration (Person A + Person B)
+
+### 🤝 Phase 4: Progressive Integration & Main Branch Checkpoints
+
+Because each task is merged to the `main` branch upon completion, use these 4 progressive integration checkpoints to validate the state of the `main` branch.
+
+#### 🏁 Integration Checkpoint 1: Package Registration & Base Build
+*Validate immediately after Task A-1 and Task A-2 are merged to main.*
+- [ ] **Task INT-1.1:** Compile the workspace on the `main` branch.
+- [ ] **Task INT-1.2:** Verify ROS 2 package registration.
+- [ ] **Check INT-1.3 (Validation):**
+  1. Run `colcon build --packages-select erc_path_planner`.
+  2. Run `source install/setup.bash`.
+  3. Run `ros2 pkg prefix erc_path_planner`.
+  *Success Criteria:* Package builds successfully and returns the installation path.
+
+#### 🏁 Integration Checkpoint 2: Parameter Server & Lifecycle Server Boot
+*Validate after Track A planners (A-3 to A-6) are merged to main.*
+- [ ] **Task INT-2.1:** Verify that all lifecycle nodes spin up and load parameters from YAML.
+- [ ] **Check INT-2.2 (Validation):**
+  1. Run `ros2 run nav2_util lifecycle_bringup`.
+  2. Run `ros2 launch erc_path_planner path_planning.launch.py`.
+  *Success Criteria:* `planner_server` and `controller_server` transition to the `active` state in the terminal without crashing due to YAML format errors.
+
+#### 🏁 Integration Checkpoint 3: Costmaps & Perception Bridge Live Processing
+*Validate after Track B costmaps & bridge node (B-1 to B-5) are merged to main.*
+- [ ] **Task INT-3.1:** Run the costmap bridge node alongside the main Nav2 launcher.
+- [ ] **Check INT-3.2 (Validation):**
+  1. Run `ros2 run erc_path_planner costmap_bridge_node`.
+  2. Publish a dummy message: `ros2 topic pub /perception/obstacles terrain_geometry_msgs/msg/ObstacleFeatureArray "{...}" -1`.
+  3. Run `ros2 topic echo /bridge/pointcloud`.
+  *Success Criteria:* The bridge node receives the custom message and publishes a standard PointCloud2, which is consumed by the costmap server.
+
+#### 🏁 Integration Checkpoint 4: Complete Closed-Loop Navigation Loop
+*Validate after Track B visualization (B-6, B-7) are merged, representing full project completion.*
+- [ ] **Task INT-4.1:** Verify end-to-end routing and motor velocity commands.
+- [ ] **Check INT-4.2 (Validation):**
+  1. Launch the system: `ros2 launch erc_path_planner path_planning.launch.py` and `ros2 launch erc_path_planner rviz.launch.py`.
+  2. Publish static TF transforms:
+     `ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 map odom`
+     `ros2 run tf2_ros static_transform_publisher 0 0 0 0 0 0 odom base_link`
+  3. Publish dummy `/map` and use RViz "2D Pose Estimate" and "Nav2 Goal".
+  *Success Criteria:* A green `/plan` path is drawn in RViz and `/cmd_vel` outputs valid velocity commands in response.
 
 ---
 
 ## 4. Maintenance Notes
-*   **Collaboration Rule:** Developer 1 (Track A) owns the Planner/Controller parameters and Launch files. Developer 2 (Track B) owns the Costmap parameters and C++ node development.
+*   **Collaboration Rule:** Person A owns Planners and Launch files. Person B owns Costmaps and C++ Nodes.
+*   **Completion Rule:** When a task is completed, do NOT check the box (leave it as `[ ]`). Instead, write `( done )` at the end of the task text.
 *   If a task is blocked, document the blocker below the task using blockquotes (`> Blocker: ...`).

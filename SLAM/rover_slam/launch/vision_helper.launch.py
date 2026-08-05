@@ -15,12 +15,5 @@ def generate_launch_description():
             name='realsense2_camera',
             output='screen',
             parameters=[filters_config_path]
-        ),
-        # ArUco Detector Node
-        Node(
-            package='rover_slam',
-            executable='aruco_detector_node',
-            name='aruco_detector_node',
-            output='screen'
         )
     ])

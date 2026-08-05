@@ -94,7 +94,6 @@ Autonmous_Ws/SLAM/
     │   ├── __init__.py
     │   ├── encoder_ticks_to_odom.py  # Node: Converts raw wheel ticks to nav_msgs/Odometry Twist (Person 1)
     │   ├── heuristic_slip_checker.py # Node: Compares wheels vs IMU & updates covariance (Person 1)
-    │   ├── aruco_detector_node.py    # Node: OpenCV ArUco detector & PnP solver (Person 2)
     │   └── costmap_test_stub.py      # Test Node: Simulates perception rock inputs for testing (Person 2)
     ├── test/
     │   └── test_slip_checker.py      # Unit test suite for slip pre-filter (Person 1)
@@ -130,17 +129,17 @@ Use these explicit checkpoints to verify each milestone before merging code:
 * **Status:** `[ ] Pending`
 
 ### 🚩 Checkpoint 3: Local EKF & Heuristic Slip Checker (After 2A.2, 2A.3, 3A & 2B.2)
-* **Trigger:** Completed EKF setup (`ekf.launch.py`), slip checker (`heuristic_slip_checker.py`), and ArUco detector (`aruco_detector_node.py`).
+* **Trigger:** Completed EKF setup (`ekf.launch.py`), slip checker (`heuristic_slip_checker.py`), and mock ArUco publisher.
 * **Command to Run:**
   ```bash
   ros2 launch rover_slam ekf.launch.py
+  ros2 topic pub /perception/aruco_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: 'camera_link'}, pose: {position: {x: 1.0}, orientation: {w: 1.0}}}" -1
   ros2 topic echo /odometry/filtered
-  ros2 topic echo /perception/aruco_pose
   ```
 * **Expected Output:**
   1. `/odometry/filtered` and `odom -> base_link` TF are published smoothly at 100 Hz.
   2. When simulated wheel spin occurs, `heuristic_slip_checker.py` increases covariance on `/wheel/odom_raw`.
-  3. OpenCV node detects ArUco tags and publishes 6-DOF pose on `/perception/aruco_pose`.
+  3. Verify receipt of the mock 6-DOF pose on `/perception/aruco_pose` without needing the real Perception module.
 * **Status:** `[ ] Pending`
 
 ### 🚩 Checkpoint 4: RTAB-Map SLAM & Costmap 2D Server (After 4A, 5A, 4B & 5B)
@@ -189,8 +188,7 @@ Use these explicit checkpoints to verify each milestone before merging code:
 - [✓] **Task 1B.1:** Create `config/realsense_filters.yaml` (Decimation, Spatial, Temporal, Hole-filling, 4.0m max depth).
 - [✓] **Task 1B.2:** Create `launch/vision_helper.launch.py` launching `realsense2_camera` driver with filters enabled.
 - [✓] **Task 2B.1:** Create `launch/static_transforms.launch.py` broadcasting `base_link -> camera_link` and `base_link -> imu_link`.
-- [ ] **Task 3B.1:** Develop `rover_slam/aruco_detector_node.py` using OpenCV (`cv2.aruco`) for PnP pose estimation.
-- [ ] **Task 3B.2:** Publish 6-DOF transform relative to `camera_link` to `/perception/aruco_pose` (`geometry_msgs/msg/PoseStamped`).
+- [ ] **Task 3B.1:** Verify subscription to `/perception/aruco_pose` by manually publishing a mock `geometry_msgs/msg/PoseStamped` via terminal (decoupled from Perception module).
 - [✓] **Task 4B.1:** Create `config/costmap_params.yaml` for `nav2_costmap_2d` (Static Layer, Obstacle Layer, Inflation Layer).
 - [✓] **Task 4B.2:** Create `launch/costmap.launch.py` to start `nav2_costmap_2d` lifecycle nodes.
 - [ ] **Task 5B.1:** Develop `rover_slam/costmap_test_stub.py` to publish dummy obstacle point clouds and verify `/global_costmap/costmap` inflation output.
