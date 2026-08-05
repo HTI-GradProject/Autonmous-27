@@ -95,7 +95,7 @@
   <!-- This plugin allows controlling the robot using /cmd_vel topic -->
   <!-- It simulates a differential drive robot using the middle wheels -->
   <gazebo>
-    <plugin filename="ignition-gazebo-diff-drive-system" name="ignition::gazebo::systems::DiffDrive">
+    <plugin filename="gz-sim-diff-drive-system" name="gz::sim::systems::DiffDrive">
       <!-- Wheel joints to control -->
       <left_joint>left_middle_wheel_joint</left_joint>
       <right_joint>right_middle_wheel_joint</right_joint>
