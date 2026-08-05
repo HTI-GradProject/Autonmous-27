@@ -272,12 +272,15 @@
         <a href="#concept">1. Core Concept</a>
         <a href="#tf-deepdive">1.5. TF & Coordinate Frames</a>
         <a href="#flowchart">2. Data Flowchart</a>
+        <a href="#filtering-deepdive">2.5. Sensor Filtering & Slip Check</a>
         <a href="#inputs">3. System Inputs</a>
         <a href="#outputs">4. System Outputs</a>
         <a href="#breakdown">4.5. Component Breakdown</a>
         <a href="#how-it-works">5. How it Works</a>
         <a href="#erc-benefits">6. Why it Fits ERC</a>
         <a href="#config-guide">7. Configuration Guide</a>
+        <a href="#folder-structure">8. Suggested Package Layout</a>
+        <a href="#todo-plan">9. Parallel Work Plan (2 Devs)</a>
     </div>
 
     <!-- SECTION 1: CORE CONCEPT -->
@@ -339,6 +342,7 @@
 graph TD
     classDef hardware fill:#0f172a,stroke:#94a3b8,stroke-width:2px,color:#f8fafc;
     classDef inputTopic fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef filter fill:#4c1d95,stroke:#a78bfa,stroke-width:2px,color:#f8fafc;
     classDef processing fill:#1e3a8a,stroke:#60a5fa,stroke-width:2px,color:#f8fafc;
     classDef mapping fill:#5b21b6,stroke:#a78bfa,stroke-width:3px,color:#f8fafc;
     classDef costmap fill:#b45309,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
@@ -362,6 +366,20 @@ graph TD
     HW_C --> T_RGB
     HW_C --> T_D
 
+    subgraph S2_5 [2.5. Pre-Filtering & Weighting]
+        ST_W[Wheel Low-Pass Filter]:::filter
+        ST_I[IMU Vibration Filter]:::filter
+        ST_D[Depth Post-Processing]:::filter
+        ST_F[Heuristic Slip Checker]:::filter
+    end
+
+    T_W --> ST_W
+    T_I --> ST_I
+    T_D --> ST_D
+    
+    ST_W --> ST_F
+    ST_I --> ST_F
+
     subgraph S3 [3. Core Nodes]
         EKF{robot_localization<br/>EKF Node}:::processing
         RTAB{RTAB-Map Visual SLAM Node}:::mapping
@@ -370,11 +388,11 @@ graph TD
         ROCKS([/perception/obstacles_only]):::inputTopic
     end
 
-    T_W --> EKF
-    T_I --> EKF
+    ST_F -->|Fused Odometry & Dynamic Covariance| EKF
+    ST_I -->|Filtered Orientation| EKF
     
     T_RGB --> RTAB
-    T_D --> RTAB
+    ST_D -->|Filtered Depth image| RTAB
     T_RGB --> ARUCO
     
     ARUCO -->|/perception/aruco_pose| RTAB
@@ -391,6 +409,41 @@ graph TD
     RTAB -->|Static /map Topic| NAV2_MAP
     ROCKS -->|Obstacle Coordinates| NAV2_MAP
     NAV2_MAP ==> OUT_COSTMAP
+        </div>
+    </div>
+
+    <!-- SECTION 2.5: SENSOR FILTERING & SLIP CHECK -->
+    <div id="filtering-deepdive" class="glass-panel">
+        <h2><i class="fa-solid fa-filter"></i> 2.5. Sensor Filtering & Heuristic Slip Check</h2>
+        <p>Before any raw sensor data reaches the fusion nodes (EKF and RTAB-Map), it must be cleaned and validated. Fusing raw, noisy outdoor signals directly will lead to localized mapping errors and navigation drift.</p>
+        
+        <h3>A. Camera Depth Filtering (Intel RealSense D435)</h3>
+        <p>The outdoor Mars Yard is a harsh environment for active depth cameras. Sunlight contains heavy Infrared (IR) light that interferes with the D435's projector, creating "holes" (invalid data) and spatial noise. To clean the depth feed, configure the <code>realsense2_camera</code> driver to enable the following pipeline:</p>
+        <ul>
+            <li><strong>Decimation Filter:</strong> Shrinks the depth image resolution (e.g., from 848x480 to 424x240) to save processing power on the Jetson Orin Nano while preserving spatial shape.</li>
+            <li><strong>Spatial Filter:</strong> Smooths out high-frequency noise spikes within a single frame using an edge-preserving filter, preventing "pixel jitter."</li>
+            <li><strong>Temporal Filter:</strong> Averages depth values across consecutive frames. This fills in temporary black pixels and reduces screen flicker.</li>
+            <li><strong>Hole-Filling Filter:</strong> Uses neighboring pixels to extrapolate and fill in small gaps where no depth data could be read.</li>
+            <li><strong>Max Range Clipping:</strong> Clashes and ignores all depth measurements beyond a set threshold (e.g., 4.0 meters). Far-field depth outdoors is highly inaccurate and introduces noise to the map.</li>
+        </ul>
+
+        <h3>B. IMU Low-Pass Filtering</h3>
+        <p>Driving on rough, rocky analog soil causes the rover's metal chassis to vibrate heavily. This introduces high-frequency noise spikes in the raw accelerometer and gyroscope readings. We handle this in two ways:</p>
+        <ul>
+            <li><strong>IMU Driver Filtering:</strong> The Bosch BNO055 IMU features a built-in Cortex-M0 micro-controller that runs internal sensor fusion. It outputs pre-filtered orientation quaternions, naturally stripping out high-frequency noise.</li>
+            <li><strong>Digital Low-Pass Filter (LPF):</strong> For linear accelerations, we apply a standard low-pass filter (or configure a digital filter inside the EKF) to ignore vibration noise and only track actual physical chassis displacement.</li>
+        </ul>
+
+        <h3>C. Heuristic Encoder & IMU Slip Check</h3>
+        <p>A standard Kalman Filter assumes sensor noise is static. On loose sand dunes, wheels will slip, making the encoders lie about the rover's movement. We write a custom **Helper/Pre-Filter Node** to detect slip in real time:</p>
+        
+        <div class="highlight-box" style="background: rgba(245, 158, 11, 0.05); border-left-color: var(--accent-amber);">
+            <h4 style="color: var(--accent-amber);"><i class="fa-solid fa-triangle-exclamation"></i> Heuristic Slip Verification Logic</h4>
+            <ul>
+                <li><strong>Linear Speed Disagreement:</strong> The node compares the linear velocity calculated from the wheel encoders ($V_{wheels}$) against the speed calculated from the IMU's linear acceleration ($V_{imu}$). If $|V_{wheels} - V_{imu}| > 0.15\text{ m/s}$ while the wheels are spinning, a slip is flagged.</li>
+                <li><strong>Angular Speed Disagreement:</strong> The node compares the differential turning rate of the wheels (left speed vs right speed) against the yaw rate ($Z$-axis gyro) reported by the IMU. A difference indicates side-slipping.</li>
+                <li><strong>The Reaction:</strong> When slip is detected, the helper node publishes a dynamic covariance update to the EKF. It increases the covariance values (process noise) of the wheels. This tells the EKF: *"The wheels are slipping and lying to you; ignore them and rely entirely on the IMU and visual loop closures until traction is recovered."*</li>
+            </ul>
         </div>
     </div>
 
@@ -583,7 +636,7 @@ graph TD
 ekf_filter_node:
   ros__parameters:
     frequency: 100
-    two_d_mode: true
+    two_d_mode: false # Crucial: Set to false to support 3D orientation on Martian slopes!
     publish_tf: true
 
     # Coordinate Frames
@@ -603,12 +656,79 @@ ekf_filter_node:
     # IMU Input (Orientation, Angular Velocity)
     imu0: /imu/data
     imu0_config: [false, false, false,
-                  false, false, true,  # Yaw
+                  true,  true,  true,  # Roll, Pitch, Yaw
                   false, false, false,
-                  false, false, true,  # Angular Z
+                  true,  true,  true,  # Angular X, Y, Z rates
                   true,  true,  false] # Acceleration</code></pre>
 
         <p>For RTAB-Map, in your launch file, configure <code>publish_tf</code> to true but ensure its world frame is set to <code>map</code>, allowing it to publish the <code>map</code> $\rightarrow$ <code>odom</code> transform link.</p>
+    <!-- SECTION 8: FOLDER STRUCTURE -->
+    <div id="folder-structure" class="glass-panel">
+        <h2><i class="fa-solid fa-folder-tree"></i> 8. Suggested Package Folder Structure</h2>
+        <p>To keep the SLAM module modular, clean, and easy for two developers to work on concurrently, we recommend creating a unified ROS 2 package named <code>rover_slam</code> inside your workspace <code>src/</code> directory.</p>
+        
+        <pre><code>Autonmous_Ws/src/rover_slam/
+├── CMakeLists.txt / setup.py       # Package build configuration
+├── package.xml                      # ROS 2 dependencies (robot_localization, rtabmap_ros, nav2_costmap_2d)
+├── config/
+│   ├── ekf.yaml                     # robot_localization EKF config (Developer 1)
+│   ├── rtabmap.yaml                 # RTAB-Map parameters & loop closure settings (Developer 1)
+│   ├── costmap_params.yaml          # Nav2 Costmap 2D layer & inflation settings (Developer 2)
+│   └── realsense_filters.yaml      # D435 depth filter parameters (Developer 2)
+├── launch/
+│   ├── slam_bringup.launch.py      # Master system launch file (Joint)
+│   ├── ekf.launch.py               # Local EKF & Slip Checker launch (Developer 1)
+│   ├── rtabmap.launch.py           # RTAB-Map SLAM launch (Developer 1)
+│   ├── vision_helper.launch.py     # Camera filters & ArUco detector launch (Developer 2)
+│   └── costmap.launch.py           # Nav2 Costmap 2D server launch (Developer 2)
+├── rover_slam/                     # Python Node Package Directory
+│   ├── __init__.py
+│   ├── heuristic_slip_checker.py    # Node: Compares wheels vs IMU & updates covariance (Developer 1)
+│   ├── aruco_detector_node.py       # Node: OpenCV ArUco detector & PnP solver (Developer 2)
+│   └── costmap_test_stub.py         # Test Node: Simulates perception rock inputs for testing (Developer 2)
+└── README.md</code></pre>
+    </div>
+
+    <!-- SECTION 9: PARALLEL WORK PLAN -->
+    <div id="todo-plan" class="glass-panel">
+        <h2><i class="fa-solid fa-list-check"></i> 9. Parallel Implementation Plan & To-Do List (2 Developers)</h2>
+        <p>This work plan breaks down the entire SLAM module into atomic, independent tasks. **Developer 1 (State Estimation Track)** and **Developer 2 (Vision & Costmap Track)** can work on their respective tasks simultaneously using AI assistants without blocking each other.</p>
+
+        <div class="highlight-box" style="background: rgba(99, 102, 241, 0.05); border-left-color: var(--primary);">
+            <h3 style="color: #818cf8; margin-top: 0;"><i class="fa-solid fa-user-gear"></i> Track A: Developer 1 (State Estimation, EKF & RTAB-Map SLAM)</h3>
+            <ul>
+                <li>[ ] <strong>Task 1A (Package Infrastructure):</strong> Initialize the <code>rover_slam</code> package structure, <code>setup.py</code>, and <code>package.xml</code> with dependencies (<code>robot_localization</code>, <code>rtabmap_ros</code>, <code>geometry_msgs</code>, <code>nav_msgs</code>).</li>
+                <li>[ ] <strong>Task 2A (EKF Configuration):</strong> Write <code>config/ekf.yaml</code> for <code>robot_localization</code>. Set <code>world_frame: odom</code>, select velocity (X, Y) from <code>/wheel/odom_raw</code> and yaw rate from <code>/imu/data</code>. Create <code>launch/ekf.launch.py</code>.</li>
+                <li>[ ] <strong>Task 3A (Heuristic Slip Checker Node):</strong> Develop <code>rover_slam/heuristic_slip_checker.py</code>. Subscribe to wheel speeds and IMU acceleration/yaw. Calculate linear and angular disagreement. If slip threshold (>0.15 m/s) is breached, dynamically publish increased covariance to `/wheel/odom_raw`.</li>
+                <li>[ ] <strong>Task 4A (RTAB-Map Launch & Config):</strong> Develop <code>launch/rtabmap.launch.py</code> and <code>config/rtabmap.yaml</code>. Configure <code>publish_tf: true</code> for `map &rarr; odom`, subscribe to `/odometry/filtered` (from Task 2A) and filtered depth (from Developer 2).</li>
+                <li>[ ] <strong>Task 5A (ArUco Landmark Integration):</strong> Connect the ArUco 3D pose topic (`/perception/aruco_pose` published by Developer 2) into RTAB-Map's landmark input channel to trigger global graph adjustments.</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box" style="background: rgba(20, 184, 166, 0.05); border-left-color: var(--accent-teal);">
+            <h3 style="color: var(--accent-teal); margin-top: 0;"><i class="fa-solid fa-user-ninja"></i> Track B: Developer 2 (Sensors Pre-Processing, Vision & Costmap)</h3>
+            <ul>
+                <li>[ ] <strong>Task 1B (RealSense D435 Filter Config):</strong> Write <code>config/realsense_filters.yaml</code> and <code>launch/vision_helper.launch.py</code>. Configure `realsense2_camera` driver to enable Decimation, Spatial, Temporal, Hole-filling filters, and clip max range to 4.0 meters.</li>
+                <li>[ ] <strong>Task 2B (ArUco Detector Node):</strong> Develop <code>rover_slam/aruco_detector_node.py</code> using OpenCV (`cv2.aruco`). Subscribe to `/camera/color/image_raw`, detect markers, solve PnP math against intrinsics, and publish 6-DOF pose to `/perception/aruco_pose`.</li>
+                <li>[ ] <strong>Task 3B (Nav2 Costmap Server Config):</strong> Create <code>config/costmap_params.yaml</code> for `nav2_costmap_2d`. Define Static Layer (`/map`), Obstacle Layer (`/perception/obstacles_only`), and Inflation Layer. Create `launch/costmap.launch.py`.</li>
+                <li>[ ] <strong>Task 4B (Perception Obstacle Bridge Test):</strong> Write a test script <code>rover_slam/costmap_test_stub.py</code> that publishes simulated rock point clouds to verify `/global_costmap/costmap` inflation output.</li>
+            </ul>
+        </div>
+
+        <div class="highlight-box" style="background: rgba(245, 158, 11, 0.05); border-left-color: var(--accent-amber);">
+            <h3 style="color: var(--accent-amber); margin-top: 0;"><i class="fa-solid fa-people-roof"></i> Track C: Joint Integration & System Verification (Developers 1 & 2 Together)</h3>
+            <ul>
+                <li>[ ] <strong>Task 6 (Master System Bringup):</strong> Create <code>launch/slam_bringup.launch.py</code> combining all sub-launch files (`ekf`, `vision_helper`, `rtabmap`, `costmap`).</li>
+                <li>[ ] <strong>Task 7 (End-to-End Simulation / Rosbag Test):</strong> Play a recorded ERC rosbag or run in simulation. Verify:
+                    <ul>
+                        <li>Local frame `odom &rarr; base_link` runs at a smooth 100 Hz.</li>
+                        <li>Heuristic slip checker correctly spikes wheel covariance during simulated wheel spin.</li>
+                        <li>Global frame `map &rarr; odom` updates when loop closures or ArUco markers are detected.</li>
+                        <li>`/global_costmap/costmap` correctly inflates rock barriers for the path planner.</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
     </div>
 
 </div>

@@ -266,15 +266,35 @@
             font-size: 0.9rem;
         }
 
-        /* Diagram Box */
+        /* Diagram Containers */
         .diagram-container {
             background: rgba(10, 15, 30, 0.5);
             padding: 30px;
             border-radius: 12px;
             border: 1px solid var(--panel-border);
-            margin: 30px 0;
+            margin: 25px 0 35px 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: auto;
+            width: 100%;
+        }
+
+        .diagram-container h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            color: var(--accent-teal);
+            margin-bottom: 15px;
+            align-self: flex-start;
+        }
+
+        .diagram-container img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            margin-top: 10px;
         }
 
         /* Responsive Design */
@@ -302,7 +322,7 @@
         </div>
         <ul class="sidebar-menu">
             <li class="menu-item active"><a href="#section-introduction"><i class="fa-solid fa-info-circle"></i> ERC Context</a></li>
-            <li class="menu-item"><a href="#section-pipeline"><i class="fa-solid fa-diagram-project"></i> System Pipeline</a></li>
+            <li class="menu-item"><a href="#section-pipeline"><i class="fa-solid fa-diagram-project"></i> System Pipelines</a></li>
             <li class="menu-item"><a href="#section-blocks"><i class="fa-solid fa-cubes"></i> Module Details</a></li>
             <li class="menu-item"><a href="#section-interfaces"><i class="fa-solid fa-exchange-alt"></i> Sensor & TF Setup</a></li>
         </ul>
@@ -334,82 +354,38 @@
             </ul>
         </section>
 
-        <!-- SECTION 2: System Pipeline Flowchart -->
+        <!-- SECTION 2: System Pipelines (Flowcharts) -->
         <section id="section-pipeline" class="glass-panel">
-            <h2><i class="fa-solid fa-diagram-project"></i> General System Pipeline</h2>
+            <h2><i class="fa-solid fa-diagram-project"></i> System Pipelines & Architecture Flowcharts</h2>
             <p>
-                The architecture is designed to handle raw sensory data, filter it to prevent CPU overload, extract geometry, perform state estimation, map obstacles, and plan safe control outputs.
+                The system's architecture is represented in three visual flowcharts: first as a high-level blackbox flow indicating input/output boundaries of each module, second as a detailed functional pipeline displaying algorithmic operations, and third as a topic-based flow mapping the exact ROS 2 topics and coordinate frames bridging the subsystems.
             </p>
 
+            <!-- 1. BLACKBOX PIPELINE -->
             <div class="diagram-container">
-                <div class="mermaid">
-flowchart TD
-    %% Define Styles
-    classDef sensors fill:#1e1b4b,stroke:#4f46e5,stroke-width:2px,color:#f8fafc;
-    classDef perception fill:#064e3b,stroke:#059669,stroke-width:2px,color:#f8fafc;
-    classDef slam fill:#701a75,stroke:#d946ef,stroke-width:2px,color:#f8fafc;
-    classDef navigation fill:#822727,stroke:#ef4444,stroke-width:2px,color:#f8fafc;
-    classDef output fill:#78350f,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+                <h4>1. High-Level Blackbox Architecture Diagram</h4>
+                <p style="align-self: flex-start; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">
+                    This flowchart highlights the basic module boundaries and the explicit inputs/outputs inside each block.
+                </p>
+                <img src="rover_blackbox_pipeline.png" alt="Rover High-Level Blackbox Pipeline Diagram" />
+            </div>
 
-    %% 1. Sensors Block
-    subgraph Sensors [Onboard Sensors]
-        S_Cam[RealSense Camera<br/>RGB-D]:::sensors
-        S_IMU[BNO055 IMU<br/>Orientation/Accel]:::sensors
-        S_Enc[Wheel Encoders<br/>Tick Rates]:::sensors
-    end
+            <!-- 2. DETAILED PIPELINE -->
+            <div class="diagram-container">
+                <h4>2. Detailed Subsystem Pipeline Diagram</h4>
+                <p style="align-self: flex-start; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">
+                    This flowchart shows the internal algorithms (e.g. RANSAC, DBSCAN, EMA, MPPI) and precise block-level data flows.
+                </p>
+                <img src="rover_detailed_pipeline.png" alt="Rover Detailed Subsystem Pipeline Diagram" />
+            </div>
 
-    %% 2. Perception Block
-    subgraph Perception [Perception Module]
-        P_Filter[Depth Filter & Downsampling<br/>Voxel Grid]:::perception
-        P_Ransac[RANSAC Ground Filter<br/>Slope Detection]:::perception
-        P_Dbscan[DBSCAN Clustering<br/>Obstacle Detection]:::perception
-        P_Memory[Persistent Memory Node<br/>EMA Bounding Boxes]:::perception
-        P_Aruco[ArUco Detector<br/>OpenCV solvePnP]:::perception
-    end
-
-    %% 3. SLAM & Fusion Block
-    subgraph SLAM [SLAM & Odometry Fusion]
-        F_Fuzzy[Fuzzy Inference System<br/>Calculates Q & R Matrices]:::slam
-        F_EKF[Iterated EKF Engine<br/>robot_localization]:::slam
-        F_Map[Slam Toolbox / RTAB-Map<br/>Occupancy Grid Map]:::slam
-    end
-
-    %% 4. Navigation Block
-    subgraph Navigation [Path Planning & Control]
-        N_Global[Smac Hybrid A* Planner<br/>Kinematic Global Path]:::navigation
-        N_Local[MPPI Controller<br/>Trajectory Simulation]:::navigation
-    end
-
-    %% Sensor Streams to Perception & SLAM
-    S_Cam -->|RGB + Depth Images| P_Filter
-    S_Cam -->|RGB Frame| P_Aruco
-    S_IMU -->|Raw Inertial & Yaw| F_EKF
-    S_Enc -->|Tick Velocities| F_EKF
-    S_IMU -.->|Slip Comparison| F_Fuzzy
-    S_Enc -.->|Slip Comparison| F_Fuzzy
-
-    %% Perception Connections
-    P_Filter -->|Downsampled Points| P_Ransac
-    P_Ransac -->|Obstacle Points| P_Dbscan
-    P_Dbscan -->|Temporary Bounding Boxes| P_Memory
-    P_Aruco -->|Visual Odometry/Pose| F_EKF
-    P_Aruco -->|Absolute Marker Poses| F_EKF
-
-    %% SLAM Inputs and Outputs
-    P_Memory -->|/perception/obstacles_only| F_Map
-    F_Fuzzy -->|Adaptive Process/Measurement Noise| F_EKF
-    F_EKF -->|/odometry/filtered| F_Map
-    F_EKF -->|odom -> base_link TF| N_Local
-    F_Map -->|/map & map -> odom TF| N_Global
-
-    %% Navigation Inputs and Outputs
-    N_Global -->|/plan| N_Local
-    F_EKF -->|/odometry/filtered| N_Global
-    F_EKF -->|/odometry/filtered| N_Local
-
-    %% Command Output
-    N_Local -->|/cmd_vel| RoverActuation[Rover Motors & Actuators]:::output
-                </div>
+            <!-- 3. TOPIC-BASED DATA FLOW (FlowWTopics) -->
+            <div class="diagram-container">
+                <h4>3. ROS 2 Topic & Transform Data Flow Diagram (FlowWTopics)</h4>
+                <p style="align-self: flex-start; font-size: 0.9rem; color: var(--text-muted); margin-bottom: 10px;">
+                    This flowchart maps the exact ROS 2 topic names and coordinate TF transforms linking drivers, perception, Saif SLAM, and planning.
+                </p>
+                <img src="FlowWTopics.png" alt="ROS 2 Topic Data Flow Diagram" />
             </div>
         </section>
 
@@ -434,17 +410,18 @@ flowchart TD
                     </ul>
                 </div>
 
-                <!-- SLAM Card -->
+                <!-- SLAM Card (Saif SLAM Specification) -->
                 <div class="block-card alt">
                     <h4><i class="fa-solid fa-map-location-dot"></i> 2. SLAM & Fusion Module</h4>
                     <p>
-                        Computes the rover's position and coordinates the mapping database.
+                        Computes the rover's position and coordinates the mapping database using Option B (Separate EKF + RTAB-Map).
                     </p>
                     <ul>
                         <li><strong>Input:</strong> Wheel ticks, IMU Quaternions, visual odometry, and detected ArUco poses.</li>
-                        <li><strong>Fuzzy Inference:</strong> Compares wheel velocities against IMU turn rates to detect slips. Adjusts EKF matrix bounds dynamically (trust wheels less when slipping, trust camera less when featureless).</li>
-                        <li><strong>State Fusion (IESKF):</strong> Merges local sensors into `/odometry/filtered` (smooth state estimation). Uses ArUco tag locations to perform absolute corrections (canceling drift).</li>
-                        <li><strong>Mapping:</strong> Feeds localized odometry and obstacle boxes to `slam_toolbox` to generate a 2D Occupancy Grid.</li>
+                        <li><strong>State Fusion (Local EKF):</strong> Merges wheel ticks and IMU data inside `robot_localization` to publish smooth, high-frequency `/odometry/filtered` (100 Hz).</li>
+                        <li><strong>Global Mapping & Loop Closure (RTAB-Map):</strong> Processes visual inputs against EKF odometry. Detects previously seen visual regions (loop closures) to update the global `map -> odom` transform offset.</li>
+                        <li><strong>ArUco Drift Correction:</strong> Visual marker coordinates are processed by OpenCV PnP. Detected poses are fed to SLAM to run absolute coordinate resets, eliminating accumulated odometry drift.</li>
+                        <li><strong>Heuristic Slip Check:</strong> An independent logic node compares wheel linear speeds and differential turn rates against IMU accelerations and gyroscope yaw rates. If a discrepancy is detected, it raises wheel covariance in the EKF, making it ignore wheel slips.</li>
                         <li><strong>Output:</strong> `/odometry/filtered` and `/map`.</li>
                     </ul>
                 </div>
@@ -525,7 +502,7 @@ flowchart TD
             <ul>
                 <li><strong>`base_link` &rarr; `camera_link` / `imu_link`:</strong> Fixed static transforms. Calibrated once and broadcasted by `robot_state_publisher`.</li>
                 <li><strong>`odom` &rarr; `base_link`:</strong> High-frequency relative transform (100 Hz) broadcasted by the **EKF Node**. Keeps local movements continuous and fast.</li>
-                <li><strong>`map` &rarr; `odom`:</strong> Lower-frequency absolute correction transform (1 - 5 Hz) broadcasted by the **Mapping Node** (`slam_toolbox` or `rtabmap`). Compares camera data against past loops or ArUco markers to shift the coordinate grid and cancel drift.</li>
+                <li><strong>`map` &rarr; `odom`:</strong> Lower-frequency absolute correction transform (1 - 5 Hz) broadcasted by the **Mapping Node** (RTAB-Map). Compares camera data against past loops or ArUco markers to shift the coordinate grid and cancel drift.</li>
             </ul>
         </section>
     </main>
