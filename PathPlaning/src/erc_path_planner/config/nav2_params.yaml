@@ -3,8 +3,12 @@ planner_server:
     expected_planner_frequency: 20.0
     planner_plugins: ["GridBased"]
 
-    GridBased:
+       GridBased:
       plugin: "nav2_smac_planner::SmacPlannerHybrid"
+      motion_model_for_search: "REEDS_SHEPP"
+      minimum_turning_radius: 0.8
+      allow_unknown: true
+
 
 controller_server:
   ros__parameters:
