@@ -51,7 +51,7 @@ PathPlaning/
 - [ ] **Task A-1.1:** Create the `erc_path_planner` package structure (directories: `config`, `launch`, `rviz`, `behavior_trees`, `src`). ( done )
 - [ ] **Task A-1.2:** Write `package.xml` including all Nav2 dependencies (`nav2_bringup`, `nav2_smac_planner`, `nav2_mppi_controller`, `nav2_costmap_2d`, `nav2_bt_navigator`).(done)
 - [ ] **Task A-2.1:** Write `CMakeLists.txt` to install `config`, `launch`, `rviz`, and `behavior_trees` directories.(done)
-- [ ] **Check A-2.2 (Validation):** Run `colcon build --packages-select erc_path_planner`. Ensure 0 errors.
+- [ ] **Check A-2.2 (Validation):** Run `colcon build --packages-select erc_path_planner`. Ensure 0 errors. (done)
 
 **Planners Configuration:**
 - [ ] **Task A-3.1:** Create `config/nav2_params.yaml`.
