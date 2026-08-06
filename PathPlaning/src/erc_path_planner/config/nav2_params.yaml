@@ -9,9 +9,13 @@ planner_server:
       minimum_turning_radius: 0.8
       allow_unknown: true
 
-
 controller_server:
   ros__parameters:
+    controller_frequency: 20.0
+    controller_plugins: ["FollowPath"]
+
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
 
 bt_navigator:
   ros__parameters:
