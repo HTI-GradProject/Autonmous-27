@@ -1,0 +1,12 @@
+# realsense_filters.yaml Parameters
+camera:
+  realsense2_camera:
+    ros__parameters:
+      enable_depth: true
+      enable_color: true
+      depth_module:
+        profile: "424x240x30"
+      align_depth:
+        enable: true
+      filters: "decimation,spatial,temporal,hole_filling"
+      clip_distance: 4.0
