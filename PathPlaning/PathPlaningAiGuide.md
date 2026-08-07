@@ -49,17 +49,17 @@ PathPlaning/
 
 **Foundation & Package Setup:**
 - [ ] **Task A-1.1:** Create the `erc_path_planner` package structure (directories: `config`, `launch`, `rviz`, `behavior_trees`, `src`). ( done )
-- [ ] **Task A-1.2:** Write `package.xml` including all Nav2 dependencies (`nav2_bringup`, `nav2_smac_planner`, `nav2_mppi_controller`, `nav2_costmap_2d`, `nav2_bt_navigator`).
-- [ ] **Task A-2.1:** Write `CMakeLists.txt` to install `config`, `launch`, `rviz`, and `behavior_trees` directories.
-- [ ] **Check A-2.2 (Validation):** Run `colcon build --packages-select erc_path_planner`. Ensure 0 errors.
+- [ ] **Task A-1.2:** Write `package.xml` including all Nav2 dependencies (`nav2_bringup`, `nav2_smac_planner`, `nav2_mppi_controller`, `nav2_costmap_2d`, `nav2_bt_navigator`).(done)
+- [ ] **Task A-2.1:** Write `CMakeLists.txt` to install `config`, `launch`, `rviz`, and `behavior_trees` directories.(done)
+- [ ] **Check A-2.2 (Validation):** Run `colcon build --packages-select erc_path_planner`. Ensure 0 errors. (done)
 
 **Planners Configuration:**
-- [ ] **Task A-3.1:** Create `config/nav2_params.yaml`.
-- [ ] **Task A-3.2:** Configure `planner_server` inside `nav2_params.yaml` to use `SmacPlannerHybrid`.
-- [ ] **Task A-3.3:** Set Smac parameters (`motion_model_for_search: "REEDS_SHEPP"`, `minimum_turning_radius: 0.8`, `allow_unknown: true`).
+- [ ] **Task A-3.1:** Create `config/nav2_params.yaml`. (done)
+- [ ] **Task A-3.2:** Configure `planner_server` inside `nav2_params.yaml` to use `SmacPlannerHybrid`.(done)
+- [ ] **Task A-3.3:** Set Smac parameters (`motion_model_for_search: "REEDS_SHEPP"`, `minimum_turning_radius: 0.8`, `allow_unknown: true`).(done)
 - [ ] **Task A-4.1:** Configure `controller_server` to use `MPPIController`.
-- [ ] **Task A-4.2:** Set MPPI parameters (`batch_size: 2000`, `time_steps: 56`, `model_dt: 0.05`, limits, and critics).
-- [ ] **Check A-4.3 (Validation):** Run `yamllint config/nav2_params.yaml` to ensure no syntax errors.
+- [ ] **Task A-4.2:** Set MPPI parameters (`batch_size: 2000`, `time_steps: 56`, `model_dt: 0.05`, limits, and critics).(done)
+- [ ] **Check A-4.3 (Validation):** Run `yamllint config/nav2_params.yaml` to ensure no syntax errors.(done)
 
 **Bringup & Launch:**
 - [ ] **Task A-5.1:** Setup `bt_navigator` parameters in YAML to use standard navigation tree.
