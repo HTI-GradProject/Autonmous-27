@@ -1,6 +1,6 @@
-# 🧠 Perception AI Implementation Guide & GitHub Issue Breakdown (`PerceptionAiGuide.md`)
+# 🧠 Perception AI Implementation Guide & Roadmap (`PerceptionAiGuide.md`)
 
-> 💡 **AI Maintenance Directive:** This document serves as the master roadmap for AI assistants and engineers implementing the Perception Subsystem. When completing a task or GitHub Issue, **mark the corresponding task checkboxes (`- [x]`) and update the Document Status Log.**
+> 💡 **AI Maintenance Directive:** This document is the master roadmap for AI assistants and human engineers implementing the Perception Subsystem. When completing a task or updating code, **mark the task checkbox (`- [x]`) and update the Document Status Log.**
 
 ---
 
@@ -14,7 +14,7 @@
 
 ---
 
-## 📖 1. The Big Picture & System Context
+## 📖 1. The Big Picture & System Architecture
 
 The **Perception Subsystem** provides 3D spatial awareness and visual target recognition for an autonomous Mars-analog rover. To optimize compute performance on the Jetson Orin Nano, the architecture strictly separates **State Estimation/SLAM** (handled by the **Saif SLAM Module**) from **Obstacle Recognition & Target Pose Estimation** (handled by this **Perception Module**).
 
@@ -52,6 +52,27 @@ The **Perception Subsystem** provides 3D spatial awareness and visual target rec
 | Fuses persistent rock bounding boxes onto 2D occupancy costmap for Smac A* Path Planner           |
 +---------------------------------------------------------------------------------------------------+
 ```
+
+---
+
+## 🔗 1.5. Inter-Module Contracts: Interface with SLAM & Path Planning
+
+To ensure seamless integration across all rover subsystems, the Perception module adheres to strict inter-module data contracts with **Saif SLAM** (`saif SLAM.html`) and **Path Planning** (`PathPlannerGuide.html`):
+
+### A. Contract with Saif SLAM Module (`SLAM/Slam_Docu/saif SLAM.html`)
+* **What SLAM Provides to Perception:**
+  * **TF Transforms (`map &rarr; odom &rarr; base_link &rarr; camera_link`):** Published by `robot_localization` EKF ($100\text{ Hz}$) and RTAB-Map ($1-5\text{ Hz}$). Allows perception to transform raw camera point clouds into `base_link` coordinates.
+  * **Fused Odometry (`/odometry/filtered`):** High-speed velocity feedback used by perception's obstacle tracker to compensate for rover motion during clustering.
+* **What Perception Provides to SLAM:**
+  * **ArUco 3D Target Pose (`/perception/aruco_pose` - `geometry_msgs/msg/PoseStamped`):** Measured via OpenCV SolvePnP. When RTAB-Map sees a known marker ID, it triggers an instant **hard drift reset** on the global `map &rarr; odom` transform.
+
+### B. Contract with Path Planning Module (`PathPlaning/PathPlanner_Docu/PathPlannerGuide.html`)
+* **What Path Planning Needs from Perception:**
+  * **Persistent 3D Bounding Boxes (`/perception/obstacles_only` - `vision_msgs/msg/Detection3DArray`):** High-level 3D rock obstacles ingested by Nav2's `costmap_2d` Obstacle Layer for real-time MPPI local steering and Smac Hybrid A* global path planning.
+  * **Local Costmap (`/terrain/costmap` - `nav_msgs/msg/OccupancyGrid`):** 2D occupancy grid rasterized at $5\text{cm}$ cell resolution, pre-inflated by the robot footprint radius ($0.3\text{m}$) plus safety buffer ($0.6\text{m}$).
+* **Key Constraints for Path Planning:**
+  * **Zero Latency Jumps:** Perception obstacle topics must be smoothed (via Persistent Memory Node's EMA filter) so MPPI steering controllers do not experience coordinate stutter.
+  * **Frame Consistency:** All obstacle bounding boxes published to Nav2 must specify `header.frame_id = "base_link"` or `"odom"`.
 
 ---
 
@@ -129,24 +150,48 @@ Autonmous_Ws/Perception/
 
 ---
 
-## 🎫 4. GitHub Issue & Implementation Task Guide
+## 🎯 4. Master Task Roadmap & GitHub Issue Guide
 
-Below is the complete list of GitHub Issues and Task breakdowns formatted for direct entry into GitHub Project boards.
+Below is the complete task roadmap. Each task entry contains its full GitHub issue body, implementation guidelines, git workflow, and verification steps.
 
 ---
 
-### 📦 ISSUE 1: `[Perception] [Task 1A.1 & 1A.2] Standardize Interface Messages`
-* **GitHub Issue Title:** `[Perception] [Task 1A.1 & 1A.2] Standardize Interface Messages to vision_msgs`
-* **GitHub Labels:** `label:Perception`, `label:enhancement`
-* **Sub-Tasks:**
-  - [ ] `- [Task 1A.1]` Add `vision_msgs` dependency to `package.xml` and `setup.py` inside `terrain_geometry`.
-  - [ ] `- [Task 1A.2]` Implement converter in `obstacle_features.py` transforming `ObstacleFeatureArray` to `vision_msgs/msg/Detection3DArray`.
-  - [ ] `- [Task 1A.3]` Modify `terrain_node.py` to publish `/perception/local_bboxes` (`vision_msgs/msg/Detection3DArray`).
+### - [ ] 📦 [Perception] [Task 1A.1 & 1A.2] Standardize Interface Messages to vision_msgs
 
-#### 🛠️ Implementation Overview
-Update the `terrain_geometry` package dependencies to include ROS 2 standard `vision_msgs`. Add a converter utility method `to_detection3d_array()` in `obstacle_features.py` that maps bounding box centroids, orientation, and sizes ($dx, dy, dz$) into standard `vision_msgs/msg/Detection3D` objects. Update `terrain_node.py` to construct a publisher on topic `/perception/local_bboxes`.
+#### 📌 Issue Summary & Objective
+Standardize the obstacle detection output messages of `terrain_geometry` by converting internal bounding box structures (`ObstacleFeatureArray`) into ROS 2 standard `vision_msgs/msg/Detection3DArray` messages. This prepares raw obstacle streams for ingestion by the Persistent Memory Node and Nav2.
 
-#### 🧪 Testing & Validation Guide
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+# 1. Ensure main branch is up to date
+cd /home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws
+git checkout main
+git pull origin main
+
+# 2. Create feature branch
+git checkout -b perception/task-1a-vision-msgs
+
+# 3. Commit changes (after implementing)
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): add vision_msgs Detection3DArray publisher to terrain_node"
+
+# 4. Push branch and open Pull Request
+git push -u origin perception/task-1a-vision-msgs
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Update `terrain_geometry` package dependencies to depend on `vision_msgs`.
+* **Data Transformation:** Design a conversion mechanism (e.g. helper function or class method in `obstacle_features.py`) to transform detected 3D bounding box features into `vision_msgs/msg/Detection3DArray`.
+* **Field Mapping Guidelines:** Ensure mapped 3D bounding boxes populate center position ($X, Y, Z$) and dimensions ($dx, dy, dz$). You are free to design the data conversion pipeline in whatever way is cleanest and most efficient.
+* **Topic Publisher:** Update `terrain_node.py` to construct a publisher streaming these standardized bounding boxes on topic `/perception/local_bboxes` using reliable QoS.
+
+---
+
+#### 🧪 Verification & Testing Guide
 ```bash
 # Step 1: Build workspace
 cd /home/saif/Desktop/MESEKET/Autonmous-27
@@ -156,216 +201,371 @@ source install/setup.bash
 # Step 2: Run Terrain Node
 ros2 launch terrain_geometry terrain.launch.py
 
-# Step 3: Echo standardized bounding box topic
+# Step 3: Echo topic in new terminal
 ros2 topic echo /perception/local_bboxes vision_msgs/msg/Detection3DArray
 ```
-* **Expect to see:** Terminal prints valid `vision_msgs/msg/Detection3DArray` messages containing 3D bounding box center poses and dimensions for detected obstacles in front of the rover.
+* **Expect to see:** Terminal prints valid `vision_msgs/msg/Detection3DArray` messages containing 3D bounding box centroids and sizes matching physical rocks in front of the rover.
 
 ---
 
-### 🎯 CHECKPOINT TASK 1: `[Perception Checkpoint 1] Validate Raw Bounding Box Interface`
-* **GitHub Issue Title:** `[Perception Checkpoint 1] Validate Raw Local Bounding Box Publishing`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Description:** Milestone verification gate ensuring `/perception/local_bboxes` streams clean `vision_msgs/msg/Detection3DArray` messages with correct coordinate frames (`base_link`) without dropping frames or leaking memory.
+### - [ ] 🎯 [Perception Checkpoint 1] Validate Raw Local Bounding Box Interface
 
-#### 🧪 Checkpoint Validation Steps
-- [ ] Run `terrain_node` in Gazebo Mars Yard simulation.
-- [ ] Verify message frequency using `ros2 topic hz /perception/local_bboxes` (Target: $\ge 10\text{ Hz}$).
-- [ ] Confirm frame ID in header matches `base_link`.
-* **Expect to see:** Reliable $10+\text{ Hz}$ stream of 3D bounding boxes corresponding accurately to physical Gazebo rocks.
+#### 📌 Milestone Gate Description
+Validate that `/perception/local_bboxes` streams clean `vision_msgs/msg/Detection3DArray` messages at $\ge 10\text{ Hz}$ in Gazebo simulation with correct frame headers (`base_link`) without memory leaks or dropped frames.
 
 ---
 
-### 📦 ISSUE 2: `[Perception] [Task 2A.1 & 2A.2] Spatial Matching & EMA Smoothing Engine`
-* **GitHub Issue Title:** `[Perception] [Task 2A.1 & 2A.2] Implement Spatial Association & EMA Rock Position Smoothing`
-* **GitHub Labels:** `label:Perception`, `label:feature`
-* **Sub-Tasks:**
-  - [ ] `- [Task 2A.1]` Create `persistent_database.py` implementing 3D spatial Euclidean nearest-neighbor data association.
-  - [ ] `- [Task 2A.2]` Implement Exponential Moving Average (EMA) position smoothing equation:
-    $$\mathbf{P}_{new} = \alpha \cdot \mathbf{P}_{detected} + (1 - \alpha) \cdot \mathbf{P}_{old}$$
-  - [ ] `- [Task 2A.3]` Add tracking ID assignment to prevent duplicate rock entries.
+#### 🛠️ Verification Implementation Overview
+Verify that raw local bounding boxes published on `/perception/local_bboxes` conform to ROS 2 standard `vision_msgs` specifications and maintain frame ID alignment with `base_link`.
 
-#### 🛠️ Implementation Overview
-Create `persistent_database.py` containing a `PersistentDatabase` class. When a new array of 3D bounding boxes (`/perception/local_bboxes`) arrives, perform a Euclidean distance threshold check ($d_{match} \le 0.5\text{m}$) against currently stored rock tracks. If a match is found, update its position using EMA smoothing ($\alpha = 0.4$) to eliminate camera jitter. If no match is found, register a new rock track.
+---
 
-#### 🧪 Testing & Validation Guide
+#### 🧪 Verification & Testing Guide
+```bash
+# Step 1: Launch simulation
+ros2 launch my_robot_description gazebo.launch.py world:=world1.world
+
+# Step 2: Launch terrain node
+ros2 launch terrain_geometry terrain.launch.py
+
+# Step 3: Verify publishing frequency
+ros2 topic hz /perception/local_bboxes
+
+# Step 4: Confirm frame ID
+ros2 topic echo /perception/local_bboxes --field header.frame_id
+```
+* **Expect to see:** Frequency $\ge 10\text{ Hz}$ and frame ID equals `base_link` with reliable 3D bounding boxes corresponding accurately to physical Gazebo rocks.
+
+---
+
+### - [ ] 📦 [Perception] [Task 2A.1 & 2A.2] Spatial Association & EMA Rock Position Smoothing
+
+#### 📌 Issue Summary & Objective
+Design and implement a spatial tracking database (`persistent_database.py`) that performs 3D spatial data association and position smoothing to eliminate camera jitter on detected rocks.
+
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+git checkout main
+git checkout -b perception/task-2a-ema-database
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): implement persistent database spatial association and EMA smoothing"
+git push -u origin perception/task-2a-ema-database
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Create a spatial database module in `terrain_geometry/persistent_database.py` capable of tracking detected rocks across consecutive frames.
+* **Spatial Association:** Implement a 3D distance matching technique (such as Euclidean nearest-neighbor, Hungarian algorithm, or spatial KD-tree) to correlate incoming raw bounding boxes (`/perception/local_bboxes`) with previously registered tracks.
+* **Position Smoothing:** Apply a smoothing algorithm (such as Exponential Moving Average or Kalman Filtering) to smooth position noise and camera jitter.
+* **Flexibility Note:** Feel free to choose the optimal data structures, distance thresholds, or smoothing weights ($\alpha$) that yield the smoothest tracking results.
+
+---
+
+#### 🧪 Verification & Testing Guide
 ```bash
 # Step 1: Run unit test script for persistent database
+cd /home/saif/Desktop/MESEKET/Autonmous-27
 colcon build --packages-select terrain_geometry
+source install/setup.bash
 python3 -m unittest terrain_geometry.test.test_persistent_memory
 ```
 * **Expect to see:** All unit tests pass, confirming noisy detection inputs settle smoothly onto true rock coordinates without spawning duplicate tracks.
 
 ---
 
-### 📦 ISSUE 3: `[Perception] [Task 2A.3 & 2A.4] Persistent Memory Node & Blind Spot Retention`
-* **GitHub Issue Title:** `[Perception] [Task 2A.3 & 2A.4] Implement Persistent Memory Node with TTL Retention`
-* **GitHub Labels:** `label:Perception`, `label:feature`
-* **Sub-Tasks:**
-  - [ ] `- [Task 2A.4]` Implement Time-to-Live (TTL) memory buffer ($N = 5.0\text{s}$) in `persistent_database.py` to retain rocks in camera blind spots.
-  - [ ] `- [Task 2A.5]` Create `persistent_memory_node.py` subscribing to `/perception/local_bboxes` (`vision_msgs/msg/Detection3DArray`).
-  - [ ] `- [Task 2A.6]` Publish persistent rock obstacles on `/perception/obstacles_only` (`vision_msgs/msg/Detection3DArray`) and RViz markers on `/terrain/obstacle_markers`.
+### - [ ] 📦 [Perception] [Task 2A.3 & 2A.4] Persistent Memory Node & Blind Spot Retention
 
-#### 🛠️ Implementation Overview
-Construct `persistent_memory_node.py` as a standalone ROS 2 executable node. Instantiate `PersistentDatabase` and subscribe to `/perception/local_bboxes`. Add a timer loop ($10\text{ Hz}$) that decrements track TTL counters for unobserved rocks and purges tracks exceeding $5.0\text{s}$. Publish the active persistent rock array on `/perception/obstacles_only` and publish 3D bounding box visual markers on `/terrain/obstacle_markers`.
+#### 📌 Issue Summary & Objective
+Build `persistent_memory_node.py` to ingest raw bounding boxes (`/perception/local_bboxes`) and output persistent rock memory (`/perception/obstacles_only`) with a memory retention buffer (Time-to-Live / TTL) to maintain rock obstacles when the camera rotates away.
 
-#### 🧪 Testing & Validation Guide
+---
+
+#### 🌿 Git Branch & Workflow Instructions
 ```bash
-# Step 1: Launch terrain node and persistent memory node
+git checkout main
+git checkout -b perception/task-2a-memory-node
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): add persistent_memory_node with TTL blind spot retention"
+git push -u origin perception/task-2a-memory-node
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Construct an executable ROS 2 node (`persistent_memory_node.py`) that maintains obstacle memory when objects leave the camera's active field of view.
+* **Data Ingestion:** Subscribe to `/perception/local_bboxes` (`vision_msgs/msg/Detection3DArray`).
+* **Memory Retention:** Implement a retention mechanism (such as time-based TTL counters or frame decay) so that obstacles remain active in memory for a configurable duration (e.g. 5 seconds) after being unobserved.
+* **Topic Publishing:** Publish persistent obstacle arrays on `/perception/obstacles_only` (`vision_msgs/msg/Detection3DArray`) and publish visual 3D bounding box markers on `/terrain/obstacle_markers`.
+
+---
+
+#### 🧪 Verification & Testing Guide
+```bash
+# Step 1: Launch nodes
 ros2 run terrain_geometry terrain_node &
 ros2 run terrain_geometry persistent_memory_node
 
-# Step 2: Test memory retention in Gazebo
+# Step 2: Test retention in Gazebo
 # Action: Drive rover towards a rock, then rotate camera 90 degrees away into a blind spot.
 ros2 topic echo /perception/obstacles_only
 ```
-* **Expect to see:** Topic `/perception/obstacles_only` continues publishing the rock's smoothed coordinates for 5 seconds after it leaves the camera's field of view.
+* **Expect to see:** Topic `/perception/obstacles_only` continues publishing the rock's smoothed coordinates for 5 seconds after it leaves the camera view.
 
 ---
 
-### 🎯 CHECKPOINT TASK 2: `[Perception Checkpoint 2] Persistent Rock Memory & TTL Retention Verification`
-* **GitHub Issue Title:** `[Perception Checkpoint 2] Validate Memory Retention & Spatial Association`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Description:** Milestone verification gate confirming the Persistent Memory Node smooths camera jitter, prevents duplicate rock entries, and retains blind-spot obstacles for Nav2 costmap overlay.
+### - [ ] 🎯 [Perception Checkpoint 2] Validate Memory Retention & Spatial Association
 
-#### 🧪 Checkpoint Validation Steps
-- [ ] Verify topic publishing rate: `ros2 topic hz /perception/obstacles_only` (Target: $10\text{ Hz}$).
-- [ ] Confirm RViz display displays persistent bounding boxes on `/terrain/obstacle_markers` even when camera turns away.
-* **Expect to see:** Rock markers remain static and visible on RViz map display when camera rotates away.
+#### 📌 Milestone Gate Description
+Confirm that the Persistent Memory Node eliminates camera jitter, avoids duplicate tracks, and maintains blind-spot obstacles for Nav2 costmap overlays.
 
 ---
 
-### 📦 ISSUE 4: `[Perception] [Task 3A.1 & 3A.2] OpenCV ArUco Corner Extraction & SolvePnP Math`
-* **GitHub Issue Title:** `[Perception] [Task 3A.1 & 3A.2] Implement OpenCV ArUco Detection & 3D SolvePnP Solver`
-* **GitHub Labels:** `label:Perception`, `label:feature`
-* **Sub-Tasks:**
-  - [ ] `- [Task 3A.1]` Create `aruco_pnp_solver.py` implementing `cv2.aruco.detectMarkers()` corner extraction.
-  - [ ] `- [Task 3A.2]` Implement `cv2.solvePnP()` in `aruco_pnp_solver.py` using camera intrinsics $\mathbf{K}$ to compute 3D translation ($X, Y, Z$) and 6-DOF orientation.
-  - [ ] `- [Task 3A.3]` Add distance clipping ($d_{max} = 4.0\text{m}$) and subpixel corner refinement.
+#### 🛠️ Verification Implementation Overview
+Validate spatial association and memory retention by verifying that the Persistent Memory Node smooths position jitter and maintains unobserved obstacles for 5 seconds.
 
-#### 🛠️ Implementation Overview
-Create `aruco_pnp_solver.py` containing an `ArUcoPnPSolver` class. Given a 2D BGR image and camera calibration parameters ($f_x, f_y, c_x, c_y$), detect ArUco dictionary markers (`DICT_5X5_250`). Pass the 4 2D corner pixels and known physical marker size ($0.2\text{m}$) to `cv2.solvePnP()` using `SOLVEPNP_IPPE_SQUARE`. Convert the output rotation vector ($\mathbf{rvec}$) and translation vector ($\mathbf{tvec}$) into 3D meters ($X, Y, Z$) and quaternion orientation.
+---
 
-#### 🧪 Testing & Validation Guide
+#### 🧪 Verification & Testing Guide
 ```bash
-# Step 1: Run unit test for SolvePnP math
+# Step 1: Verify topic publishing rate
+ros2 topic hz /perception/obstacles_only
+
+# Step 2: Display markers in RViz2
+rviz2
+
+# Step 3: Drive rover near rocks in Gazebo and rotate camera 90 degrees away
+```
+* **Expect to see:** Topic publishing rate is steady at $10\text{ Hz}$, and rock markers remain static and visible on RViz map display when camera rotates away into blind spots.
+
+---
+
+### - [ ] 📦 [Perception] [Task 3A.1 & 3A.2] OpenCV ArUco Corner Extraction & SolvePnP Solver
+
+#### 📌 Issue Summary & Objective
+Implement `aruco_pnp_solver.py` utilizing OpenCV ArUco detection and Perspective-n-Point (`SolvePnP`) algorithms to compute 3D translation ($X, Y, Z$) and 6-DOF orientation of mission target markers using camera intrinsics.
+
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+git checkout main
+git checkout -b perception/task-3a-aruco-solver
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): implement ArUco corner extraction and SolvePnP 3D pose math"
+git push -u origin perception/task-3a-aruco-solver
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Design an ArUco 3D pose estimation module in `terrain_geometry/aruco_pnp_solver.py`.
+* **Marker Extraction:** Use OpenCV's ArUco module to locate marker 2D corner pixels in RGB image frames.
+* **3D Pose Solver:** Solve the Perspective-n-Point (PnP) math using camera intrinsic parameters ($f_x, f_y, c_x, c_y$) and known physical marker dimensions to calculate 3D translation vector ($X, Y, Z$) and rotation.
+* **Flexibility Note:** You can choose any suitable OpenCV PnP solver algorithm (e.g. `SOLVEPNP_IPPE_SQUARE`, `SOLVEPNP_ITERATIVE`) and implement subpixel corner refinement or noise filtering as you see fit.
+
+---
+
+#### 🧪 Verification & Testing Guide
+```bash
+cd /home/saif/Desktop/MESEKET/Autonmous-27
 colcon build --packages-select terrain_geometry
+source install/setup.bash
 python3 -m unittest terrain_geometry.test.test_aruco_pnp
 ```
 * **Expect to see:** Unit test passes, verifying calculated 3D distance matches ground truth pixel projection to within $< 1\text{cm}$ error.
 
 ---
 
-### 📦 ISSUE 5: `[Perception] [Task 3A.3 & 3A.4] ArUco Vision Node & Pose Publisher`
-* **GitHub Issue Title:** `[Perception] [Task 3A.3 & 3A.4] Implement ArUco Detector Node & Target Pose Publisher`
-* **GitHub Labels:** `label:Perception`, `label:feature`
-* **Sub-Tasks:**
-  - [ ] `- [Task 3A.4]` Create `aruco_detector_node.py` subscribing to `/camera/color/image_raw` (`sensor_msgs/msg/Image`) and `/camera/camera_info` (`sensor_msgs/msg/CameraInfo`).
-  - [ ] `- [Task 3A.5]` Integrate `cv_bridge` to convert ROS images into OpenCV BGR format.
-  - [ ] `- [Task 3A.6]` Publish target pose on `/perception/aruco_pose` (`geometry_msgs/msg/PoseStamped`).
-  - [ ] `- [Task 3A.7]` Add option to broadcast static TF transform `camera_link -> aruco_marker_ID`.
+### - [ ] 📦 [Perception] [Task 3A.3 & 3A.4] ArUco Detector Node & Target Pose Publisher
 
-#### 🛠️ Implementation Overview
-Construct `aruco_detector_node.py` as a ROS 2 executable node. Instantiate `ArUcoPnPSolver`. Use `cv_bridge` to convert incoming `/camera/color/image_raw` frames. Extract camera intrinsics from `/camera/camera_info`. Solve 3D marker pose and publish standard `geometry_msgs/msg/PoseStamped` messages on `/perception/aruco_pose` for Saif SLAM loop closures and mission state machine navigation.
+#### 📌 Issue Summary & Objective
+Construct `aruco_detector_node.py` subscribing to `/camera/color/image_raw` and `/camera/camera_info` to publish target marker 3D pose on `/perception/aruco_pose` (`geometry_msgs/msg/PoseStamped`) for Saif SLAM loop closures.
 
-#### 🧪 Testing & Validation Guide
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+git checkout main
+git checkout -b perception/task-3a-aruco-node
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): implement aruco_detector_node and pose publisher"
+git push -u origin perception/task-3a-aruco-node
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Create an executable ROS 2 node (`aruco_detector_node.py`) that processes color camera streams to output 3D target poses.
+* **Image Bridge:** Use `cv_bridge` to convert incoming ROS image streams (`/camera/color/image_raw`) into OpenCV-compatible image matrices.
+* **Camera Calibration:** Extract camera intrinsic parameters from `/camera/camera_info`.
+* **Output Topic:** Publish detected marker 3D target poses on `/perception/aruco_pose` (`geometry_msgs/msg/PoseStamped`) for Saif SLAM landmark reset events and state machine mission navigation.
+
+---
+
+#### 🧪 Verification & Testing Guide
 ```bash
 # Step 1: Launch Gazebo world with ArUco marker
 ros2 launch worlds world_Rotated_Aruco.launch.py &
 
-# Step 2: Run ArUco Detector Node
+# Step 2: Run Node
 ros2 run terrain_geometry aruco_detector_node
 
-# Step 3: Echo output pose
+# Step 3: Echo pose
 ros2 topic echo /perception/aruco_pose geometry_msgs/msg/PoseStamped
 ```
-* **Expect to see:** Terminal outputs a valid `PoseStamped` message detailing the exact 3D distance ($X$ meters ahead, $Y$ offset, $Z$ height) matching the Gazebo ArUco marker location.
+* **Expect to see:** Terminal outputs a valid `PoseStamped` message detailing exact 3D distance ($X$ meters ahead, $Y$ offset) matching Gazebo marker location.
 
 ---
 
-### 🎯 CHECKPOINT TASK 3: `[Perception Checkpoint 3] ArUco 3D Pose Estimation Verification`
-* **GitHub Issue Title:** `[Perception Checkpoint 3] Validate ArUco 3D Distance & Pose Accuracy`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Description:** Milestone verification gate confirming the ArUco vision node accurately estimates 3D target distance and pose without relying on depth sensor IR noise.
+### - [ ] 🎯 [Perception Checkpoint 3] Validate ArUco 3D Pose Estimation Accuracy
 
-#### 🧪 Checkpoint Validation Steps
-- [ ] Confirm `/perception/aruco_pose` updates reliably when marker enters camera view.
-- [ ] Verify 3D translation ($X, Y, Z$) error is $\le 2\text{cm}$ at $2.0\text{m}$ distance in simulation.
-* **Expect to see:** Clean pose updates received by Saif SLAM without coordinate jumps or missing headers.
+#### 📌 Milestone Gate Description
+Verify that the ArUco vision node accurately estimates 3D target distance and pose without relying on depth sensor IR noise.
 
 ---
 
-### 📦 ISSUE 6: `[Perception] [Task 4A.1, 4A.2 & 4A.3] System Launch & Parameter Centralization`
-* **GitHub Issue Title:** `[Perception] [Task 4A.1, 4A.2 & 4A.3] Create Centralized YAML Parameters & System Launcher`
-* **GitHub Labels:** `label:Perception`, `label:enhancement`
-* **Sub-Tasks:**
-  - [ ] `- [Task 4A.1]` Create `config/perception_params.yaml` consolidating parameters for all 3 perception nodes.
-  - [ ] `- [Task 4A.2]` Configure ROS 2 QoS profiles (Best Effort for camera inputs, Reliable for output topics).
-  - [ ] `- [Task 4A.3]` Create `launch/perception_system.launch.py` to spin up `terrain_node`, `persistent_memory_node`, and `aruco_detector_node` concurrently.
+#### 🛠️ Verification Implementation Overview
+Validate ArUco 3D distance estimation accuracy by comparing published `PoseStamped` topics against ground truth Gazebo marker coordinates.
 
-#### 🛠️ Implementation Overview
-Create `config/perception_params.yaml` defining parameters for all three nodes (`terrain_node`, `persistent_memory_node`, `aruco_detector_node`), including ROI bounds, voxel leaf size, DBSCAN epsilon, EMA alpha, and QoS settings. Create `launch/perception_system.launch.py` using ROS 2 `LaunchDescription` and `Node` actions to launch all three nodes seamlessly with standard parameter loading.
+---
 
-#### 🧪 Testing & Validation Guide
+#### 🧪 Verification & Testing Guide
 ```bash
-# Step 1: Build and launch entire system
+# Step 1: Echo topic
+ros2 topic echo /perception/aruco_pose
+
+# Step 2: Measure 3D translation (X, Y, Z) error against Gazebo ground truth marker coordinates
+```
+* **Expect to see:** Topic `/perception/aruco_pose` updates cleanly whenever an ArUco marker enters camera field-of-view, with 3D translation error $\le 2\text{cm}$ at $2.0\text{m}$ distance without coordinate jumps.
+
+---
+
+### - [ ] 📦 [Perception] [Task 4A.1 & 4A.2] Create Centralized YAML Parameters & System Launcher
+
+#### 📌 Issue Summary & Objective
+Create `config/perception_params.yaml` and `launch/perception_system.launch.py` to spin up `terrain_node`, `persistent_memory_node`, and `aruco_detector_node` concurrently with parameter management and QoS profiles.
+
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+git checkout main
+git checkout -b perception/task-4a-launcher
+git add Perception/terrain_geometry_improved/
+git commit -m "feat(perception): add centralized parameters and perception_system.launch.py"
+git push -u origin perception/task-4a-launcher
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Centralize parameters and create a unified launch script for the perception subsystem.
+* **Parameter File:** Create `config/perception_params.yaml` consolidating configuration parameters for all three nodes (ROI spatial bounds, voxel leaf size, DBSCAN epsilon, EMA alpha weights, camera topics, QoS settings).
+* **Launch Script:** Create `launch/perception_system.launch.py` using ROS 2 `LaunchDescription` and `Node` actions to start all 3 nodes concurrently with parameter loading.
+
+---
+
+#### 🧪 Verification & Testing Guide
+```bash
+# Step 1: Launch entire perception system
 colcon build --packages-select terrain_geometry
 source install/setup.bash
 ros2 launch terrain_geometry perception_system.launch.py
 
-# Step 2: Check running nodes
+# Step 2: Verify active nodes
 ros2 node list
 ```
 * **Expect to see:** Nodes `/terrain_node`, `/persistent_memory_node`, and `/aruco_detector_node` are all running concurrently without parameter parsing errors or QoS mismatch warnings.
 
 ---
 
-### 🎯 CHECKPOINT TASK 4: `[Perception Checkpoint 4] Multi-Node System Launch & QoS Validation`
-* **GitHub Issue Title:** `[Perception Checkpoint 4] Validate System Launcher & QoS Compatibility`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Description:** Milestone verification gate confirming all three nodes execute concurrently from a single launch file without camera QoS mismatch warnings or memory leaks.
+### - [ ] 🎯 [Perception Checkpoint 4] Validate System Launcher & QoS Compatibility
 
-#### 🧪 Checkpoint Validation Steps
-- [ ] Run `ros2 doctor --report` and verify zero QoS mismatch warnings on camera topics.
-- [ ] Monitor CPU/RAM overhead using `htop` (Target: total CPU usage $\le 40\%$).
-* **Expect to see:** All 3 nodes running stably at $10-15\text{ Hz}$ on the Jetson compute stack.
+#### 📌 Milestone Gate Description
+Confirm all three nodes execute concurrently from a single launch file without camera Best Effort / Reliable QoS mismatch warnings or memory leaks.
 
 ---
 
-### 📦 ISSUE 7: `[Perception] [Task 5A.1 & 5A.2] End-to-End Nav2 Integration & Benchmarking`
-* **GitHub Issue Title:** `[Perception] [Task 5A.1 & 5A.2] Validate End-to-End Nav2 Integration & Performance Benchmarking`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Sub-Tasks:**
-  - [ ] `- [Task 5A.1]` Conduct closed-loop simulation test in Gazebo Mars Yard world (`world1.world`).
-  - [ ] `- [Task 5A.2]` Verify Nav2 `global_costmap` subscribes to `/perception/obstacles_only` and inflates rock cost zones.
-  - [ ] `- [Task 5A.3]` Execute `benchmark.py` and log algorithmic execution timing in `perception_Docu/`.
+#### 🛠️ Verification Implementation Overview
+Validate system launch integrity, ROS 2 QoS compatibility, and compute resource utilization across all perception nodes executing together.
 
-#### 🛠️ Implementation Overview
-Perform closed-loop testing with the full autonomous stack (Gazebo simulation + Nav2 + Saif SLAM + Perception). Verify that persistent 3D bounding box obstacles published on `/perception/obstacles_only` are ingested by Nav2's `costmap_2d` server, creating inflated cost regions on the global map. Execute `benchmark.py` to record per-stage execution latency (Ground Removal, Voxel Grid, DBSCAN) and confirm real-time performance ($\le 60\text{ms}$ total pipeline latency per frame).
+---
 
-#### 🧪 Testing & Validation Guide
+#### 🧪 Verification & Testing Guide
 ```bash
-# Step 1: Launch full rover simulation + Nav2 + Perception
+# Step 1: Run ROS 2 Doctor for QoS report
+ros2 doctor --report
+
+# Step 2: Monitor CPU and RAM overhead in htop
+htop
+```
+* **Expect to see:** Zero QoS mismatch warnings on camera topics, and total CPU load remains below $40\%$ on the compute stack.
+
+---
+
+### - [ ] 📦 [Perception] [Task 5A.1 & 5A.2] Validate End-to-End Nav2 Integration & Performance Benchmarking
+
+#### 📌 Issue Summary & Objective
+Perform end-to-end integration testing in Gazebo Mars Yard simulation, verifying that persistent rock obstacles on `/perception/obstacles_only` overlay onto Nav2's `global_costmap`, and run `benchmark.py` to log real-time performance.
+
+---
+
+#### 🌿 Git Branch & Workflow Instructions
+```bash
+git checkout main
+git checkout -b perception/task-5a-integration
+git add Perception/terrain_geometry_improved/
+git commit -m "test(perception): complete end-to-end Nav2 integration and performance benchmarking"
+git push -u origin perception/task-5a-integration
+```
+
+---
+
+#### 🛠️ Implementation Overview & Guidelines
+* **Objective:** Perform end-to-end integration testing and profiling of the full perception pipeline.
+* **Nav2 Costmap Integration:** Verify closed-loop compatibility with Gazebo (`world1.world`) and confirm Nav2 `costmap_2d` server subscribes to `/perception/obstacles_only` (`vision_msgs/msg/Detection3DArray`) and paints inflated obstacle cost buffers.
+* **Benchmarking:** Execute `benchmark.py` to record per-stage execution timing (Ground Removal, Voxel Grid, DBSCAN) and output log to `perception_Docu/benchmark_report.txt`.
+
+---
+
+#### 🧪 Verification & Testing Guide
+```bash
+# Step 1: Launch simulation + Nav2 + Perception
 ros2 launch my_robot_description gazebo.launch.py world:=world1.world &
 ros2 launch terrain_geometry perception_system.launch.py &
 
-# Step 2: Open RViz2 and display costmap
+# Step 2: Open RViz2
 rviz2
 ```
-* **Expect to see:** Rocks in Gazebo appear as solid red inflated cost zones on the RViz costmap display. The rover navigates autonomously around rocks without collision while keeping total perception pipeline latency $\le 60\text{ms}$.
+* **Expect to see:** Rocks in Gazebo appear as solid red inflated cost zones on the RViz costmap display. The rover navigates autonomously around rocks without collision while keeping total pipeline latency $\le 60\text{ms}$.
 
 ---
 
-### 🏆 CHECKPOINT TASK 5: `[Perception Final Gateway] Full Subsystem Verification & Competition Readiness`
-* **GitHub Issue Title:** `[Perception Final Gateway] Validate Full Subsystem Integration & Performance Metrics`
-* **GitHub Labels:** `label:Perception`, `label:QA/Testing`
-* **Description:** Final gateway sign-off verifying that all perception nodes, topics, memory retention, ArUco 3D vision, and Nav2 costmap overlays operate flawlessly.
+### - [ ] 🏆 [Perception Final Gateway] Validate Full Subsystem Integration & Performance Metrics
 
-#### 🧪 Checkpoint Validation Steps
-- [ ] Verify zero collisions during 15-minute autonomous navigation run in Gazebo Mars Yard.
-- [ ] Confirm ArUco target markers trigger landmark reset events in Saif SLAM.
-- [ ] Verify execution benchmark report saved to `perception_Docu/benchmark_report.txt`.
-* **Expect to see:** Complete autonomous perception pipeline operates cleanly, passing all ERC competition navigation benchmarks.
+#### 📌 Milestone Gate Description
+Final sign-off verifying zero collisions during a 15-minute autonomous navigation run in Gazebo Mars Yard world, confirming competition readiness.
+
+---
+
+#### 🛠️ Verification Implementation Overview
+Perform final subsystem gateway verification confirming that all perception nodes, memory retention, ArUco 3D vision, and Nav2 costmap overlays operate flawlessly.
+
+---
+
+#### 🧪 Verification & Testing Guide
+```bash
+# Step 1: Execute 15-minute autonomous navigation run in Gazebo
+ros2 launch my_robot_description gazebo.launch.py world:=world1.world &
+ros2 launch terrain_geometry perception_system.launch.py
+
+# Step 2: Inspect benchmark log report
+cat /home/saif/Desktop/MESEKET/Autonmous-27/Autonmous_Ws/Perception/perception_Docu/benchmark_report.txt
+```
+* **Expect to see:** Complete autonomous perception pipeline operates cleanly without crashes or memory leaks, achieving $100\%$ obstacle avoidance success rate over a 15-minute testing run.
 
 ---
 
