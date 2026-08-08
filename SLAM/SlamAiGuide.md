@@ -188,10 +188,10 @@ Use these explicit checkpoints to verify each milestone before merging code:
 - [✓] **Task 1B.1:** Create `config/realsense_filters.yaml` (Decimation, Spatial, Temporal, Hole-filling, 4.0m max depth).
 - [✓] **Task 1B.2:** Create `launch/vision_helper.launch.py` launching `realsense2_camera` driver with filters enabled.
 - [✓] **Task 2B.1:** Create `launch/static_transforms.launch.py` broadcasting `base_link -> camera_link` and `base_link -> imu_link`.
-- [ ] **Task 3B.1:** Verify subscription to `/perception/aruco_pose` by manually publishing a mock `geometry_msgs/msg/PoseStamped` via terminal (decoupled from Perception module).
+- [✓] **Task 3B.1:** Develop ArUco marker detector node (`aruco_detector_node.py`) & mock test publisher (`mock_aruco_publisher.py`) for `/perception/aruco_pose` landmark verification.
 - [✓] **Task 4B.1:** Create `config/costmap_params.yaml` for `nav2_costmap_2d` (Static Layer, Obstacle Layer, Inflation Layer).
 - [✓] **Task 4B.2:** Create `launch/costmap.launch.py` to start `nav2_costmap_2d` lifecycle nodes.
-- [ ] **Task 5B.1:** Develop `rover_slam/costmap_test_stub.py` to publish dummy obstacle point clouds and verify `/global_costmap/costmap` inflation output.
+- [✓] **Task 5B.1:** Develop `rover_slam/costmap_test_stub.py` to publish synthetic obstacle point clouds and verify `/global_costmap/costmap` inflation output.
 
 ---
 

@@ -447,17 +447,18 @@ DEVELOPMENT CONSTRAINTS:
         </div>
 
         <div class="highlight-box" style="background: rgba(245, 158, 11, 0.05); border-left-color: var(--accent-amber);">
-            <h4 style="color: var(--accent-amber);"><i class="fa-solid fa-circle-play"></i> Checkpoint 3: Local EKF, Slip Checker & ArUco Detector (After 2A.2, 3A & 2B.2)</h4>
+            <h4 style="color: var(--accent-amber);"><i class="fa-solid fa-circle-play"></i> Checkpoint 3: Local EKF & Slip Checker (After 2A.2, 3A & 2B.2)</h4>
             <ul>
-                <li><strong>Trigger:</strong> Task 2A.2/2A.3 (EKF setup), Task 3A (slip checker), & Task 2B.2 (ArUco detector) completed.</li>
+                <li><strong>Trigger:</strong> Task 2A.2/2A.3 (EKF setup), Task 3A (slip checker), & mock ArUco publisher verified.</li>
                 <li><strong>Command to Run:</strong> 
                     <br><code>ros2 launch rover_slam ekf.launch.py</code>
-                    <br><code>ros2 topic echo /odometry/filtered</code> &nbsp;|&nbsp; <code>ros2 topic echo /perception/aruco_pose</code>
+                    <br><code>ros2 topic pub /perception/aruco_pose geometry_msgs/msg/PoseStamped "{header: {frame_id: 'camera_link'}, pose: {position: {x: 1.0}, orientation: {w: 1.0}}}" -1</code>
+                    <br><code>ros2 topic echo /odometry/filtered</code>
                 </li>
                 <li><strong>Expected Output:</strong> 
                     (1) `/odometry/filtered` & <code>odom &rarr; base_link</code> TF publish smoothly at 100 Hz. 
                     (2) When simulated wheel slip occurs, `heuristic_slip_checker.py` increases covariance on `/wheel/odom_raw`. 
-                    (3) OpenCV node detects ArUco tags and publishes 6-DOF pose on `/perception/aruco_pose`.
+                    (3) Verify receipt of the mock 6-DOF pose on `/perception/aruco_pose` without needing the real Perception module.
                 </li>
             </ul>
         </div>
@@ -626,18 +627,10 @@ DEVELOPMENT CONSTRAINTS:
             </div>
 
             <div class="todo-item">
-                <input type="checkbox" id="p2-t3-1">
+                <input type="checkbox" id="p2-t3-1" checked>
                 <div>
-                    <div class="task-title">Task 3B.1: ArUco Marker Detector Node (OpenCV PnP)</div>
-                    <div class="task-desc">Develop `rover_slam/aruco_detector_node.py` using OpenCV (`cv2.aruco`). Subscribe to `/camera/color/image_raw` and `/camera/camera_info`. Detect markers and solve PnP pose math.</div>
-                </div>
-            </div>
-
-            <div class="todo-item">
-                <input type="checkbox" id="p2-t3-2">
-                <div>
-                    <div class="task-title">Task 3B.2: ArUco Pose Publisher & Verification</div>
-                    <div class="task-desc">Publish 6-DOF transform relative to `camera_link` to `/perception/aruco_pose` (`geometry_msgs/msg/PoseStamped`). Test on sample ArUco images.</div>
+                    <div class="task-title">Task 3B.1: ArUco Pose Subscription & Detector Node</div>
+                    <div class="task-desc">Implement `aruco_detector_node.py` (PnP pose solver) and `mock_aruco_publisher.py` for decoupled `/perception/aruco_pose` testing with RTAB-Map SLAM.</div>
                 </div>
             </div>
 
@@ -658,7 +651,7 @@ DEVELOPMENT CONSTRAINTS:
             </div>
 
             <div class="todo-item">
-                <input type="checkbox" id="p2-t5-1">
+                <input type="checkbox" id="p2-t5-1" checked>
                 <div>
                     <div class="task-title">Task 5B: Perception Obstacle Test Stub & Costmap Verification</div>
                     <div class="task-desc">Develop `rover_slam/costmap_test_stub.py` to publish dummy rock obstacle point clouds. Verify that `nav2_costmap_2d` correctly inflates rock safety bubbles and outputs `/global_costmap/costmap`.</div>

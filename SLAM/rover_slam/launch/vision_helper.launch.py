@@ -8,12 +8,14 @@ def generate_launch_description():
     filters_config_path = os.path.join(pkg_share, 'config', 'realsense_filters.yaml')
 
     return LaunchDescription([
-        # RealSense Camera Driver with Depth Filters
+        # RealSense D435 Camera Driver with Depth Post-Processing Filters
         Node(
             package='realsense2_camera',
             executable='realsense2_camera_node',
             name='realsense2_camera',
+            namespace='camera',
             output='screen',
             parameters=[filters_config_path]
         )
     ])
+
