@@ -15,7 +15,7 @@ setup(
         (os.path.join('share', package_name, 'config'), glob('config/*')),
     ],
     install_requires=['setuptools'],
-    zip_safe=true,
+    zip_safe=True,
     maintainer='Saif',
     maintainer_email='saif@erc-rover.org',
     description='ERC Mars Rover SLAM Subsystem Package',
@@ -26,6 +26,8 @@ setup(
             'encoder_ticks_to_odom = rover_slam.encoder_ticks_to_odom:main',
             'heuristic_slip_checker = rover_slam.heuristic_slip_checker:main',
             'costmap_test_stub = rover_slam.costmap_test_stub:main',
+            'mock_aruco_publisher = rover_slam.mock_aruco_publisher:main',
         ],
     },
+
 )
