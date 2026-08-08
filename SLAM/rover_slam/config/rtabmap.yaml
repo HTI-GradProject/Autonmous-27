@@ -1,0 +1,17 @@
+# rtabmap.yaml Parameters
+rtabmap:
+  ros__parameters:
+    frame_id: base_link
+    odom_frame_id: odom
+    map_frame_id: map
+    publish_tf: true
+    database_path: "~/.ros/rtabmap.db"
+    
+    # RTAB-Map Core Parameters
+    RGBD/LinearUpdate: "0.1"      # Minimum linear displacement to update map (meters)
+    RGBD/AngularUpdate: "0.1"     # Minimum angular displacement to update map (rad)
+    RGBD/OptimizeFromGraphEnd: "false"
+    Grid/FromDepth: "true"
+    Grid/MaxObstacleHeight: "2.0"
+    Grid/RayTracing: "true"
+    Optimizer/Strategy: "1"       # GTSAM Graph Optimizer
